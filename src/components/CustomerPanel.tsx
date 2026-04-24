@@ -3,10 +3,12 @@ import { motion } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
 import { Project } from '../types';
 import { SOLAR_STAGES } from '../constants';
+import { supabase } from '../lib/supabase';
 
 export default function CustomerPanel() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
@@ -18,14 +20,16 @@ export default function CustomerPanel() {
 
   const fetchProjects = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch('/api/projects', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      if (!res.ok) throw new Error('Failed to fetch projects');
-      setProjects(await res.json());
-    } catch (err) {
+      const { data, error: sbError } = await supabase
+        .from('projects')
+        .select('*');
+      
+      if (sbError) throw sbError;
+      setProjects(data || []);
+      setError(null);
+    } catch (err: any) {
       console.error('Fetch error:', err);
+      setError(err.message || 'Failed to fetch projects from Supabase');
     } finally {
       setLoading(false);
     }
@@ -47,6 +51,13 @@ export default function CustomerPanel() {
           <p className="text-[#616161] font-medium">Real-time progress overview of your assigned projects.</p>
         </div>
       </header>
+
+      {/* Error Message */}
+      {error && (
+        <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-sm font-medium">
+          Error: {error}. Please check your Supabase table name ("projects") and RLS policies.
+        </div>
+      )}
 
       {/* Filter Bar */}
       <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl border border-[#E5E5E5]">

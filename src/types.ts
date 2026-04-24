@@ -14,6 +14,8 @@ export interface Project {
   status: SolarStage;
   progress: number;
   assigned_customers?: string;
+  customer_name?: string;
+  contact_no?: string;
   created_at: string;
   updated_at: string;
 }

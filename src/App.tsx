@@ -11,6 +11,7 @@ import Dashboard from './components/Dashboard';
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('Overview');
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -29,6 +30,7 @@ export default function App() {
 
   const handleLogout = () => {
     setUser(null);
+    setActiveTab('Overview');
     localStorage.removeItem('user');
     localStorage.removeItem('token');
   };
@@ -52,8 +54,8 @@ export default function App() {
           path="/*"
           element={
             user ? (
-              <Layout user={user} onLogout={handleLogout}>
-                <Dashboard user={user} />
+              <Layout user={user} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
+                <Dashboard user={user} activeTab={activeTab} />
               </Layout>
             ) : (
               <Navigate to="/login" />
@@ -65,7 +67,13 @@ export default function App() {
   );
 }
 
-function Layout({ user, children, onLogout }: { user: User; children: React.ReactNode; onLogout: () => void }) {
+function Layout({ user, children, onLogout, activeTab, setActiveTab }: { 
+  user: User; 
+  children: React.ReactNode; 
+  onLogout: () => void;
+  activeTab: string;
+  setActiveTab: (tab: string) => void;
+}) {
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -82,11 +90,26 @@ function Layout({ user, children, onLogout }: { user: User; children: React.Reac
           </div>
 
           <div className="space-y-1">
-            <NavItem icon={<LayoutDashboard size={18} />} label="Overview" active onClick={() => navigate('/')} />
+            <NavItem 
+              icon={<LayoutDashboard size={18} />} 
+              label="Overview" 
+              active={activeTab === 'Overview'} 
+              onClick={() => { setActiveTab('Overview'); navigate('/'); }} 
+            />
             {user.role === 'admin' && (
               <>
-                <NavItem icon={<Users size={18} />} label="Customers" onClick={() => {}} />
-                <NavItem icon={<FolderKanban size={18} />} label="Installations" onClick={() => {}} />
+                <NavItem 
+                  icon={<Users size={18} />} 
+                  label="Customers" 
+                  active={activeTab === 'Customers'} 
+                  onClick={() => { setActiveTab('Customers'); navigate('/'); }} 
+                />
+                <NavItem 
+                  icon={<FolderKanban size={18} />} 
+                  label="Installations" 
+                  active={activeTab === 'Installations'} 
+                  onClick={() => { setActiveTab('Installations'); navigate('/'); }} 
+                />
               </>
             )}
           </div>
