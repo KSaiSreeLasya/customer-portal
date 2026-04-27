@@ -145,8 +145,28 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
           </div>
           
           <div className="text-right shrink-0 hidden md:block">
-            <p className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Expected Subsidy</p>
-            <p className="text-3xl font-bold tracking-tight text-emerald-600">Calculated</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Proposal Amount</p>
+            <p className="text-3xl font-bold tracking-tight text-emerald-600">₹{(project.proposal_amount || 0).toLocaleString()}</p>
+          </div>
+        </div>
+
+        {/* Payment Summary */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 bg-[#F5F5F4] p-6 rounded-3xl">
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Proposal</p>
+            <p className="font-bold">₹{(project.proposal_amount || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Advance</p>
+            <p className="font-bold">₹{(project.advance_amount || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Paid</p>
+            <p className="font-bold">₹{(project.paid_amount || 0).toLocaleString()}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1 text-rose-500">Balance</p>
+            <p className="font-bold text-rose-600">₹{((project.proposal_amount || 0) - (project.paid_amount || 0)).toLocaleString()}</p>
           </div>
         </div>
 

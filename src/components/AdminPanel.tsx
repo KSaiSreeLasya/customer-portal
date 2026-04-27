@@ -23,6 +23,9 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
   const [projectDesc, setProjectDesc] = useState('');
   const [customerNameInput, setCustomerNameInput] = useState('');
   const [contactNoInput, setContactNoInput] = useState('');
+  const [proposalAmount, setProposalAmount] = useState('');
+  const [paidAmount, setPaidAmount] = useState('');
+  const [advanceAmount, setAdvanceAmount] = useState('');
   const [selectedCustomers, setSelectedCustomers] = useState<number[]>([]);
   
   const [customerName, setCustomerName] = useState('');
@@ -35,12 +38,24 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
   const fetchData = async () => {
     const token = localStorage.getItem('token');
+    setLoading(true);
     try {
       // Fetch customers from local API (still managed locally for auth)
-      const customersRes = await fetch('/api/users', { headers: { Authorization: `Bearer ${token}` } });
-      if (!customersRes.ok) throw new Error('Failed to fetch customers');
-      const customersData = await customersRes.json();
-      setCustomers(customersData);
+      try {
+        const customersRes = await fetch('/api/users', { 
+          headers: { Authorization: `Bearer ${token}` } 
+        });
+        
+        const contentType = customersRes.headers.get('content-type');
+        if (customersRes.ok && contentType && contentType.includes('application/json')) {
+          const customersData = await customersRes.json();
+          setCustomers(customersData);
+        } else {
+          console.warn('Customer fetch skipped: API returned non-JSON or error status', customersRes.status);
+        }
+      } catch (custErr) {
+        console.error('Customer fetch network error:', custErr);
+      }
 
       // Fetch projects from Supabase
       const { data: projectsData, error: sbError } = await supabase
@@ -71,6 +86,10 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           description: projectDesc, 
           customer_name: customerNameInput,
           contact_no: contactNoInput,
+          proposal_amount: proposalAmount ? parseFloat(proposalAmount) : 0,
+          paid_amount: paidAmount ? parseFloat(paidAmount) : 0,
+          advance_amount: advanceAmount ? parseFloat(advanceAmount) : 0,
+          balance_amount: (proposalAmount ? parseFloat(proposalAmount) : 0) - (paidAmount ? parseFloat(paidAmount) : 0),
           status: initialStatus,
           progress: progress
         }])
@@ -83,6 +102,9 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       setProjectDesc('');
       setCustomerNameInput('');
       setContactNoInput('');
+      setProposalAmount('');
+      setPaidAmount('');
+      setAdvanceAmount('');
       setSelectedCustomers([]);
       fetchData();
     } catch (err) {
@@ -324,6 +346,22 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   value={contactNoInput} onChange={e => setContactNoInput(e.target.value)} required
                 />
               </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input 
+                  type="number" placeholder="Proposal Amount" className="w-full p-4 bg-[#F5F5F4] rounded-xl border-none"
+                  value={proposalAmount} onChange={e => setProposalAmount(e.target.value)}
+                />
+                <input 
+                  type="number" placeholder="Paid Amount" className="w-full p-4 bg-[#F5F5F4] rounded-xl border-none"
+                  value={paidAmount} onChange={e => setPaidAmount(e.target.value)}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <input 
+                  type="number" placeholder="Advance Amount" className="w-full p-4 bg-[#F5F5F4] rounded-xl border-none"
+                  value={advanceAmount} onChange={e => setAdvanceAmount(e.target.value)}
+                />
+              </div>
               <div className="flex gap-4 pt-4">
                 <button type="button" onClick={() => setShowAddProject(false)} className="flex-1 py-4 font-semibold text-[#9E9E9E]">Cancel</button>
                 <button type="submit" className="flex-1 py-4 bg-[#1A1A1A] text-white rounded-xl font-semibold shadow-lg shadow-black/10">Create Project</button>
@@ -389,6 +427,25 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Contact</p>
                     <p className="font-semibold">{selectedProject.contact_no || 'Not specified'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 bg-[#1A1A1A] p-6 rounded-[24px] text-white">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Proposal</p>
+                    <p className="text-lg font-bold">₹{(selectedProject.proposal_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Advance</p>
+                    <p className="text-lg font-bold">₹{(selectedProject.advance_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Paid</p>
+                    <p className="text-lg font-bold">₹{(selectedProject.paid_amount || 0).toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Balance</p>
+                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
                   </div>
                 </div>
               </div>

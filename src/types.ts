@@ -16,6 +16,10 @@ export interface Project {
   assigned_customers?: string;
   customer_name?: string;
   contact_no?: string;
+  proposal_amount?: number;
+  paid_amount?: number;
+  advance_amount?: number;
+  balance_amount?: number;
   created_at: string;
   updated_at: string;
 }
