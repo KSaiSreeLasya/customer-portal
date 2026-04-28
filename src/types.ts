@@ -8,14 +8,16 @@ export interface User {
 export type SolarStage = 'Site Visit' | 'Proposal' | 'eKYC' | 'Payment' | 'Approvals' | 'Material' | 'Installation' | 'Net Meter' | 'Subsidy';
 
 export interface Project {
-  id: number;
+  id: string;
   name: string;
   description: string;
+  email?: string;
   status: SolarStage;
   progress: number;
   assigned_customers?: string;
   customer_name?: string;
   contact_no?: string;
+  payment_mode?: string;
   proposal_amount?: number;
   paid_amount?: number;
   advance_amount?: number;

@@ -4,6 +4,7 @@ import { Plus, Users, FolderKanban, CheckCircle2, Clock, PlayCircle, Loader2, Ar
 import { User, Project } from '../types';
 import { SOLAR_STAGES, STAGE_PROGRESS } from '../constants';
 import { supabase } from '../lib/supabase';
+import { StatusPipeline } from './StatusPipeline';
 
 export default function AdminPanel({ activeTab }: { activeTab: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
@@ -128,9 +129,16 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
     fetchData();
   };
 
-  const updateProjectStatus = async (id: number, status: string) => {
+  const updateProjectStatus = async (id: string, status: string) => {
     try {
       const progress = STAGE_PROGRESS[status as keyof typeof STAGE_PROGRESS] || 0;
+      
+      // Update locally immediately for best DX
+      setProjects(prev => prev.map(p => p.id === id ? { ...p, status: status as any, progress } : p));
+      if (selectedProject?.id === id) {
+        setSelectedProject(prev => prev ? { ...prev, status: status as any, progress, updated_at: new Date().toISOString() } : null);
+      }
+
       const { error: sbError } = await supabase
         .from('projects')
         .update({ status, progress, updated_at: new Date().toISOString() })
@@ -138,15 +146,13 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
       if (sbError) throw sbError;
       
-      // Update selected project if it's the one being updated
-      if (selectedProject?.id === id) {
-        setSelectedProject({ ...selectedProject, status: status as any, progress, updated_at: new Date().toISOString() });
-      }
-      
+      // Still fetch to sync with DB
       fetchData();
     } catch (err: any) {
       console.error('Update status error:', err);
       setError(err.message);
+      // Revert on error
+      fetchData();
     }
   };
 
@@ -416,7 +422,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
               <div className="space-y-4 border-b border-[#F5F5F4] pb-8">
                 <div className="flex items-center gap-3">
                   <StatusBadge status={selectedProject.status} />
-                  <span className="text-xs font-semibold text-[#9E9E9E] bg-[#F5F5F4] px-3 py-1 rounded-lg">ID: SOLAR-{selectedProject.id.toString().padStart(4, '0')}</span>
+                  <span className="text-xs font-semibold text-[#9E9E9E] bg-[#F5F5F4] px-3 py-1 rounded-lg">ID: SOLAR-{selectedProject.id}</span>
                 </div>
                 <h2 className="text-5xl font-bold tracking-tighter">{selectedProject.name}</h2>
                 <div className="grid grid-cols-2 gap-4">
@@ -445,7 +451,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Balance</p>
-                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.advance_amount || selectedProject.advance_payment || selectedProject.advance_amt || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
+                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.advance_payment || selectedProject.advance_amount || selectedProject.advance_amt || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
@@ -460,15 +466,15 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
               {/* Progress Section */}
               <div className="space-y-6 bg-[#F5F5F4] p-8 rounded-[32px]">
-                <div className="flex justify-between items-center">
+                <div className="flex justify-between items-center px-4">
                   <div className="space-y-1">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">Workflow Progress</h3>
+                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">Workflow Status</h3>
                     <div className="flex items-center gap-4">
                       <p className="text-3xl font-bold tracking-tight">{selectedProject.status}</p>
                       <select 
                         value={selectedProject.status}
                         onChange={(e) => updateProjectStatus(selectedProject.id, e.target.value)}
-                        className="bg-white border border-[#E5E5E5] rounded-lg px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-black outline-none"
+                        className="bg-white border border-[#E5E5E5] rounded-xl px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-black outline-none cursor-pointer"
                       >
                         {SOLAR_STAGES.map(stage => (
                           <option key={stage} value={stage}>{stage}</option>
@@ -477,17 +483,13 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                     </div>
                   </div>
                   <div className="text-right">
+                    <p className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Overall Completion</p>
                     <p className="text-5xl font-black tracking-tighter font-mono">{selectedProject.progress}%</p>
                   </div>
                 </div>
-                <div className="h-4 bg-white rounded-full overflow-hidden border border-[#E5E5E5]">
-                  <motion.div 
-                    key={selectedProject.status}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${selectedProject.progress}%` }}
-                    transition={{ duration: 1, ease: "circOut" }}
-                    className="h-full bg-black" 
-                  />
+                
+                <div key={`${selectedProject.id}-${selectedProject.status}`}>
+                  <StatusPipeline currentStatus={selectedProject.status} />
                 </div>
               </div>
 

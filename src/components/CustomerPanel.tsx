@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
-import { Project } from '../types';
+import { Project, User } from '../types';
 import { SOLAR_STAGES } from '../constants';
 import { supabase } from '../lib/supabase';
+import { StatusPipeline } from './StatusPipeline';
 
-export default function CustomerPanel() {
+export default function CustomerPanel({ user }: { user: User }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,13 +17,14 @@ export default function CustomerPanel() {
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+  }, [user.email]);
 
   const fetchProjects = async () => {
     try {
       const { data, error: sbError } = await supabase
         .from('projects')
-        .select('*');
+        .select('*')
+        .eq('email', user.email);
       
       if (sbError) throw sbError;
       setProjects(data || []);
@@ -138,7 +140,7 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
                 {config.icon}
                 {project.status}
               </span>
-              <span className="text-xs font-semibold text-[#9E9E9E] bg-[#F5F5F4] px-3 py-1 rounded-lg">ID: SOLAR-{project.id.toString().padStart(4, '0')}</span>
+              <span className="text-xs font-semibold text-[#9E9E9E] bg-[#F5F5F4] px-3 py-1 rounded-lg">ID: SOLAR-{project.id}</span>
             </div>
             <h2 className="text-4xl font-bold tracking-tighter group-hover:text-black transition-colors">{project.name}</h2>
             <p className="text-lg text-[#616161] leading-relaxed max-w-3xl">{project.description || 'Tracking your transition to renewable energy.'}</p>
@@ -170,53 +172,9 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
           </div>
         </div>
 
-        {/* Timeline Visualization */}
-        <div className="py-6 overflow-x-auto scrollbar-hide">
-          <div className="relative min-w-[800px] px-4">
-            {/* Background Line */}
-            <div className="absolute top-5 left-4 right-4 h-1 bg-[#F5F5F4] rounded-full" />
-            
-            {/* Active Line Progress */}
-            <motion.div 
-              initial={{ width: 0 }}
-              animate={{ width: `calc(${(SOLAR_STAGES.indexOf(project.status) / (SOLAR_STAGES.length - 1)) * 100}% - 32px)` }}
-              transition={{ duration: 1.5, ease: "circOut" }}
-              className="absolute top-5 left-4 h-1 bg-emerald-500 rounded-full z-10"
-            />
-
-            {/* Stages */}
-            <div className="relative flex justify-between z-20">
-              {SOLAR_STAGES.map((stage, sIdx) => {
-                const currentIdx = SOLAR_STAGES.indexOf(project.status);
-                const isReached = sIdx <= currentIdx;
-                const isCurrent = sIdx === currentIdx;
-
-                return (
-                  <div key={stage} className="flex flex-col items-center gap-4">
-                    <motion.div 
-                      initial={{ scale: 0.8 }}
-                      animate={{ 
-                        scale: isCurrent ? 1.2 : 1,
-                        backgroundColor: isReached ? '#10b981' : '#f5f5f4', // emerald-500 or neutral-100
-                      }}
-                      className="w-10 h-10 rounded-full shadow-lg flex items-center justify-center transition-colors border-4 border-white"
-                    >
-                      {isReached ? (
-                        <CheckCircle2 size={18} className="text-white" />
-                      ) : (
-                        <div className="w-2 h-2 rounded-full bg-[#D4D4D4]" />
-                      )}
-                    </motion.div>
-                    <div className="text-center">
-                      <p className={`text-[10px] font-bold uppercase tracking-tighter transition-colors ${isReached ? 'text-black' : 'text-[#9E9E9E]'}`}>
-                        {stage}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+        {/* Timeline Pipeline */}
+        <div className="bg-[#F5F5F4] rounded-[32px] p-2" key={`${project.id}-${project.status}`}>
+          <StatusPipeline currentStatus={project.status} />
         </div>
 
         {/* Footer Details */}

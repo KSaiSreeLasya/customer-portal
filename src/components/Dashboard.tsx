@@ -5,7 +5,7 @@ import CustomerPanel from './CustomerPanel';
 export default function Dashboard({ user, activeTab }: { user: User; activeTab: string }) {
   return (
     <div>
-      {user.role === 'admin' ? <AdminPanel activeTab={activeTab} /> : <CustomerPanel />}
+      {user.role === 'admin' ? <AdminPanel activeTab={activeTab} /> : <CustomerPanel user={user} />}
     </div>
   );
 }
