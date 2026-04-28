@@ -23,7 +23,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
   const [projectName, setProjectName] = useState('');
   const [projectDesc, setProjectDesc] = useState('');
   const [customerNameInput, setCustomerNameInput] = useState('');
-  const [contactNoInput, setContactNoInput] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   const [proposalAmount, setProposalAmount] = useState('');
   const [paidAmount, setPaidAmount] = useState('');
   const [advanceAmount, setAdvanceAmount] = useState('');
@@ -86,7 +86,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           name: projectName, 
           description: projectDesc, 
           customer_name: customerNameInput,
-          contact_no: contactNoInput,
+          phone: phoneInput,
           proposal_amount: proposalAmount ? parseFloat(proposalAmount) : 0,
           paid_amount: paidAmount ? parseFloat(paidAmount) : 0,
           advance_amount: advanceAmount ? parseFloat(advanceAmount) : 0,
@@ -102,7 +102,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       setProjectName('');
       setProjectDesc('');
       setCustomerNameInput('');
-      setContactNoInput('');
+      setPhoneInput('');
       setProposalAmount('');
       setPaidAmount('');
       setAdvanceAmount('');
@@ -159,7 +159,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
   const filteredProjects = projects.filter(p => {
     const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
                          (p.customer_name && p.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-                         (p.contact_no && p.contact_no.toLowerCase().includes(searchQuery.toLowerCase())) ||
+                         (p.phone && p.phone.toLowerCase().includes(searchQuery.toLowerCase())) ||
                          (p.assigned_customers && p.assigned_customers.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesStatus = statusFilter === 'All' || p.status === statusFilter;
     return matchesSearch && matchesStatus;
@@ -207,7 +207,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       {/* Error Message */}
       {error && (
         <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-sm font-medium">
-          Error: {error}. Please check your Supabase table name ("projects") and RLS policies.
+          Error: {error}.
         </div>
       )}
 
@@ -252,7 +252,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   <tr className="bg-[#F5F5F4] text-[#9E9E9E] font-semibold text-xs uppercase tracking-wider">
                     <th className="px-6 py-4">Project Name</th>
                     <th className="px-6 py-4">Customer Name</th>
-                    <th className="px-6 py-4">Contact No.</th>
+                    <th className="px-6 py-4">Phone</th>
                     <th className="px-6 py-4 text-right">Progress</th>
                   </tr>
                 </thead>
@@ -271,7 +271,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                         {p.customer_name || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-sm text-[#616161]">
-                        {p.contact_no || 'N/A'}
+                        {p.phone || 'N/A'}
                       </td>
                       <td className="px-6 py-4 text-right w-48">
                         <div className="flex items-center justify-end gap-3">
@@ -348,8 +348,8 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   value={customerNameInput} onChange={e => setCustomerNameInput(e.target.value)} required
                 />
                 <input 
-                  placeholder="Contact No." className="w-full p-4 bg-[#F5F5F4] rounded-xl border-none"
-                  value={contactNoInput} onChange={e => setContactNoInput(e.target.value)} required
+                  placeholder="Phone" className="w-full p-4 bg-[#F5F5F4] rounded-xl border-none"
+                  value={phoneInput} onChange={e => setPhoneInput(e.target.value)} required
                 />
               </div>
               <div className="grid grid-cols-2 gap-4">
@@ -431,8 +431,8 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                     <p className="font-semibold">{selectedProject.customer_name || 'Not specified'}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Contact</p>
-                    <p className="font-semibold">{selectedProject.contact_no || 'Not specified'}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Phone</p>
+                    <p className="font-semibold">{selectedProject.phone || 'Not specified'}</p>
                   </div>
                 </div>
 

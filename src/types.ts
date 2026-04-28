@@ -1,7 +1,8 @@
 export interface User {
-  id: number;
+  id: number | string;
   name: string;
-  email: string;
+  email?: string;
+  phone?: string;
   role: 'admin' | 'customer';
 }
 
@@ -16,7 +17,7 @@ export interface Project {
   progress: number;
   assigned_customers?: string;
   customer_name?: string;
-  contact_no?: string;
+  phone?: string;
   payment_mode?: string;
   proposal_amount?: number;
   paid_amount?: number;

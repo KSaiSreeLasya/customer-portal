@@ -1,12 +1,15 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import db from './db';
+import db from './db.ts';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const PORT = 3000;
@@ -24,47 +27,67 @@ const STAGE_PROGRESS: Record<string, number> = {
   'Subsidy': 100,
 };
 
+// Request logging middleware
+app.use((req, _res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+  next();
+});
+
 app.use(express.json());
 
+// Health Check
+app.get('/api/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
 // Seeding standard admin if not exists
-const adminExists = db.prepare('SELECT * FROM users WHERE role = ?').get('admin');
-if (!adminExists) {
-  const hashedPassword = bcrypt.hashSync('admin123', 10);
-  db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)').run(
-    'Admin User',
-    'admin@example.com',
-    hashedPassword,
-    'admin'
-  );
-  console.log('Admin seeded: admin@example.com / admin123');
-}
+try {
+  const adminExists = db.prepare('SELECT * FROM users WHERE role = ?').get('admin');
+  if (!adminExists) {
+    const hashedPassword = bcrypt.hashSync('admin123', 10);
+    db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)').run(
+      'Admin User',
+      'admin@example.com',
+      hashedPassword,
+      'admin'
+    );
+    console.log('Admin seeded: admin@example.com / admin123');
+  }
 
-// Seeding dummy customer and project for preview
-const customerExists = db.prepare('SELECT * FROM users WHERE email = ?').get('customer@example.com');
-if (!customerExists) {
-  const hashedPassword = bcrypt.hashSync('customer123', 10);
-  const userResult = db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)').run(
-    'John Doe',
-    'customer@example.com',
-    hashedPassword,
-    'customer'
-  );
-  const customerId = userResult.lastInsertRowid;
+  // Seeding dummy customer and project for preview
+  const customerExists = db.prepare('SELECT * FROM users WHERE email = ?').get('customer@example.com');
+  if (!customerExists) {
+    const hashedPassword = bcrypt.hashSync('customer123', 10);
+    const userResult = db.prepare('INSERT INTO users (name, email, password, role) VALUES (?, ?, ?, ?)').run(
+      'John Doe',
+      'customer@example.com',
+      hashedPassword,
+      'customer'
+    );
+    const customerId = userResult.lastInsertRowid;
 
-  const status = 'Installation';
-  const progress = STAGE_PROGRESS[status] || 0;
+    const status = 'Installation';
+    const progress = STAGE_PROGRESS[status] || 0;
 
-  const projectResult = db.prepare("INSERT INTO projects (name, description, status, progress) VALUES (?, ?, ?, ?)").run(
-    '10kW Solar System',
-    'Full rooftop installation for residential property.',
-    status,
-    progress
-  );
-  const projectId = projectResult.lastInsertRowid;
+    const projectResult = db.prepare(`
+      INSERT INTO projects (name, description, customer_name, phone, status, progress) 
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(
+      '10kW Solar System',
+      'Full rooftop installation for residential property.',
+      'John Doe',
+      '9876543210',
+      status,
+      progress
+    );
+    const projectId = projectResult.lastInsertRowid;
 
-  db.prepare('INSERT INTO user_projects (user_id, project_id) VALUES (?, ?)').run(customerId, projectId);
-  
-  console.log('Sample customer seeded: customer@example.com / customer123');
+    db.prepare('INSERT INTO user_projects (user_id, project_id) VALUES (?, ?)').run(customerId, projectId);
+    
+    console.log('Sample customer seeded: customer@example.com / customer123');
+  }
+} catch (err) {
+  console.error('Database initialization error:', err);
 }
 
 // Authentication Middleware
@@ -99,6 +122,37 @@ app.post('/api/auth/login', (req, res) => {
   res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
 });
 
+app.post('/api/auth/customer-login', (req, res) => {
+  const { name, phone } = req.body;
+  
+  if (!name || !phone) {
+    return res.status(400).json({ error: 'Customer name and phone number are required' });
+  }
+
+  const project = db.prepare('SELECT * FROM projects WHERE customer_name = ? AND phone = ?').get(name, phone);
+
+  if (!project) {
+    return res.status(404).json({ error: 'No project found with these details. Please contact your administrator.' });
+  }
+
+  const token = jwt.sign({ 
+    id: `cust_${phone}`, 
+    name, 
+    phone, 
+    role: 'customer' 
+  }, JWT_SECRET, { expiresIn: '24h' });
+
+  res.json({ 
+    token, 
+    user: { 
+      id: `cust_${phone}`, 
+      name, 
+      phone, 
+      role: 'customer' 
+    } 
+  });
+});
+
 // User routes (Admin Only)
 app.get('/api/users', authenticateToken, isAdmin, (req, res) => {
   const users = db.prepare("SELECT id, name, email, role, created_at FROM users WHERE role = 'customer'").all();
@@ -128,22 +182,39 @@ app.get('/api/projects', authenticateToken, (req: any, res) => {
     `).all();
     res.json(projects);
   } else {
+    // Return projects matching customer name and phone
     const projects = db.prepare(`
-      SELECT p.*
-      FROM projects p
-      JOIN user_projects up ON p.id = up.project_id
-      WHERE up.user_id = ?
-    `).all(req.user.id);
+      SELECT *
+      FROM projects
+      WHERE customer_name = ? AND phone = ?
+    `).all(req.user.name, req.user.phone);
     res.json(projects);
   }
 });
 
 app.post('/api/projects', authenticateToken, isAdmin, (req, res) => {
-  const { name, description, customerIds } = req.body;
+  const { name, description, customerName, phone, proposalAmount, paidAmount, advanceAmount, customerIds } = req.body;
   const initialStatus = 'Site Visit';
   const progress = STAGE_PROGRESS[initialStatus] || 10;
   
-  const info = db.prepare('INSERT INTO projects (name, description, status, progress) VALUES (?, ?, ?, ?)').run(name, description, initialStatus, progress);
+  const balanceAmount = (proposalAmount || 0) - (advanceAmount || 0) - (paidAmount || 0);
+
+  const info = db.prepare(`
+    INSERT INTO projects (name, description, customer_name, phone, proposal_amount, paid_amount, advance_amount, balance_amount, status, progress) 
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    name, 
+    description || '', 
+    customerName || '', 
+    phone || '', 
+    proposalAmount || 0, 
+    paidAmount || 0, 
+    advanceAmount || 0, 
+    balanceAmount,
+    initialStatus, 
+    progress
+  );
+  
   const projectId = info.lastInsertRowid;
 
   if (customerIds && Array.isArray(customerIds)) {
@@ -171,18 +242,35 @@ app.use((err: any, req: any, res: any, next: any) => {
 
 // Vite Middleware
 if (process.env.NODE_ENV !== 'production') {
+  const { createServer: createViteServer } = await import('vite');
   const vite = await createViteServer({
     server: { middlewareMode: true },
     appType: 'spa',
   });
   app.use(vite.middlewares);
 } else {
-  const __dirname = path.resolve();
   app.use(express.static(path.join(__dirname, 'dist')));
-  app.get('*', (req, res) => {
+  app.get('*', (req, res, next) => {
+    if (req.url.startsWith('/api/')) {
+      return next();
+    }
     res.sendFile(path.join(__dirname, 'dist/index.html'));
   });
 }
+
+// Final API 404 handler
+app.use('/api', (req, res) => {
+  res.status(404).json({ error: `API route not found: ${req.method} ${req.url}` });
+});
+
+// Final catch-all for non-API routes if not handled by static/vite
+app.get('*', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    res.sendFile(path.join(__dirname, 'dist/index.html'));
+  } else {
+    res.status(404).send('Not Found');
+  }
+});
 
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server running at http://0.0.0.0:${PORT}`);

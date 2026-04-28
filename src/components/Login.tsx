@@ -2,10 +2,14 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Lock, Loader2, ArrowRight } from 'lucide-react';
 import { User } from '../types';
+import { supabase } from '../lib/supabase';
 
 export default function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
+  const [mode, setMode] = useState<'admin' | 'customer'>('customer');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [phone, setPhone] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -15,16 +19,47 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
     setError('');
 
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
+      if (mode === 'admin') {
+        const res = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Login failed');
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          console.error('Non-JSON login response:', text);
+          throw new Error(`Server error (${res.status}). Please try again later.`);
+        }
 
-      onLogin(data.user, data.token);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        onLogin(data.user, data.token);
+      } else {
+        // Customer Mode: Direct Supabase Lookup
+        const { data: projects, error: sbError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('customer_name', customerName)
+          .eq('phone', phone)
+          .limit(1);
+
+        if (sbError) throw sbError;
+
+        if (!projects || projects.length === 0) {
+          throw new Error('No project found with these details. Please contact your administrator.');
+        }
+
+        const mockUser: User = {
+          id: `cust_${phone}`,
+          name: customerName,
+          phone: phone,
+          role: 'customer'
+        };
+        onLogin(mockUser, 'supabase-anon-token');
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -69,40 +104,95 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
       <div className="w-full md:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           <div className="mb-12">
-            <h2 className="text-4xl font-bold tracking-tight mb-2">Welcome back</h2>
-            <p className="text-[#616161]">Please enter your details to sign in.</p>
+            <div className="flex bg-[#F5F5F4] p-1 rounded-xl mb-8">
+              <button 
+                onClick={() => { setMode('customer'); setError(''); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'customer' ? 'bg-white shadow-sm text-black' : 'text-[#9E9E9E]'}`}
+              >
+                Customer Portal
+              </button>
+              <button 
+                onClick={() => { setMode('admin'); setError(''); }}
+                className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${mode === 'admin' ? 'bg-white shadow-sm text-black' : 'text-[#9E9E9E]'}`}
+              >
+                Admin Access
+              </button>
+            </div>
+
+            <h2 className="text-4xl font-bold tracking-tight mb-2">
+              {mode === 'admin' ? 'Staff Login' : 'Project Lookup'}
+            </h2>
+            <p className="text-[#616161]">
+              {mode === 'admin' ? 'Enter your credentials to manage project pipelines.' : 'Enter your project details to check your installation status.'}
+            </p>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Email Address</label>
-              <div className="relative">
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
-                  placeholder="admin@example.com"
-                  required
-                />
-                <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E]" size={20} />
-              </div>
-            </div>
+            {mode === 'admin' ? (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Email Address</label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
+                      placeholder="admin@example.com"
+                      required
+                    />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E]" size={20} />
+                  </div>
+                </div>
 
-            <div>
-              <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Password</label>
-              <div className="relative">
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
-                  placeholder="••••••••"
-                  required
-                />
-                <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E]" size={20} />
-              </div>
-            </div>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Password</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
+                      placeholder="••••••••"
+                      required
+                    />
+                    <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E]" size={20} />
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Customer Name</label>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customerName}
+                      onChange={(e) => setCustomerName(e.target.value)}
+                      className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
+                      placeholder="e.g. John Doe"
+                      required
+                    />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E] opacity-0" size={20} />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2">Phone Number</label>
+                  <div className="relative">
+                    <input
+                      type="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      className="w-full bg-[#F5F5F4] border-none rounded-xl px-12 py-4 focus:ring-2 focus:ring-[#1A1A1A] transition-all"
+                      placeholder="Enter registered phone"
+                      required
+                    />
+                    <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E] opacity-0" size={20} />
+                  </div>
+                </div>
+              </>
+            )}
 
             {error && (
               <motion.p 
@@ -119,17 +209,33 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
               disabled={loading}
               className="w-full bg-[#1A1A1A] text-white rounded-xl py-4 font-semibold text-lg hover:bg-black transition-all disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {loading ? <Loader2 className="animate-spin" /> : <>Sign In <ArrowRight size={20} /></>}
+              {loading ? <Loader2 className="animate-spin" /> : <>{mode === 'admin' ? 'Sign In' : 'Look Up Project'} <ArrowRight size={20} /></>}
             </button>
           </form>
 
-          <div className="mt-12 p-6 bg-[#F5F5F4] rounded-2xl border border-[#E5E5E5]">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2 underline decoration-black/20">Demo Credentials</p>
-            <div className="flex justify-between text-sm">
-              <span className="text-[#616161]">Email: admin@example.com</span>
-              <span className="font-mono bg-white px-2 py-0.5 rounded border border-[#E5E5E5]">admin123</span>
+          {mode === 'admin' ? (
+            <div className="mt-12 p-6 bg-[#F5F5F4] rounded-2xl border border-[#E5E5E5]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2 underline decoration-black/20">Staff Test Account</p>
+              <div className="flex justify-between text-sm items-center">
+                <span className="text-[#616161]">Email: admin@example.com</span>
+                <span className="font-mono bg-white px-2 py-0.5 rounded border border-[#E5E5E5]">admin123</span>
+              </div>
             </div>
-          </div>
+          ) : (
+            <div className="mt-12 p-6 bg-[#F5F5F4] rounded-2xl border border-[#E5E5E5]">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-2 underline decoration-black/20">Sample Customer Info</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-[#616161]">Name:</span>
+                  <span className="font-medium text-black">John Doe</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-[#616161]">Phone:</span>
+                  <span className="font-medium text-black">9876543210</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

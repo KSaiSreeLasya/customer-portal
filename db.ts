@@ -19,12 +19,12 @@ db.exec(`
     name TEXT NOT NULL,
     description TEXT,
     customer_name TEXT,
-    contact_no TEXT,
+    phone TEXT,
     proposal_amount REAL DEFAULT 0,
     paid_amount REAL DEFAULT 0,
     advance_amount REAL DEFAULT 0,
     balance_amount REAL DEFAULT 0,
-    status TEXT CHECK(status IN ('Site Visit', 'Proposal', 'eKYC', 'Payment', 'Approvals', 'Material', 'Installation', 'Net Meter', 'Subsidy')) NOT NULL DEFAULT 'Site Visit',
+    status TEXT NOT NULL DEFAULT 'Site Visit',
     progress INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
@@ -39,5 +39,15 @@ db.exec(`
     FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
   );
 `);
+
+// Migration: Add phone column if it doesn't exist
+try {
+  db.exec("ALTER TABLE projects ADD COLUMN phone TEXT");
+} catch (e) {}
+
+// Migration: Add customer_name column if it doesn't exist
+try {
+  db.exec("ALTER TABLE projects ADD COLUMN customer_name TEXT");
+} catch (e) {}
 
 export default db;

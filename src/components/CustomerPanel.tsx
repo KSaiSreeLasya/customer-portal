@@ -17,20 +17,21 @@ export default function CustomerPanel({ user }: { user: User }) {
 
   useEffect(() => {
     fetchProjects();
-  }, [user.email]);
+  }, []);
 
   const fetchProjects = async () => {
     try {
       const { data, error: sbError } = await supabase
         .from('projects')
         .select('*')
-        .eq('email', user.email);
+        .eq('customer_name', user.name)
+        .eq('phone', user.phone);
       
       if (sbError) throw sbError;
       setProjects(data || []);
       setError(null);
     } catch (err: any) {
-      console.error('Fetch error:', err);
+      console.error('Customer fetch error:', err);
       setError(err.message || 'Failed to fetch projects from Supabase');
     } finally {
       setLoading(false);
@@ -57,7 +58,7 @@ export default function CustomerPanel({ user }: { user: User }) {
       {/* Error Message */}
       {error && (
         <div className="bg-rose-50 border border-rose-100 text-rose-600 p-4 rounded-xl text-sm font-medium">
-          Error: {error}. Please check your Supabase table name ("projects") and RLS policies.
+          Error: {error}.
         </div>
       )}
 
