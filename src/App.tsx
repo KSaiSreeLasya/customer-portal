@@ -78,20 +78,24 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
   const location = useLocation();
 
   return (
-    <div className="min-h-screen bg-[#F5F5F4] text-[#1A1A1A] font-sans">
+    <div className="min-h-screen bg-surface-bg text-brand-primary font-sans">
       {/* Sidebar / Nav */}
-      <nav className="fixed top-0 left-0 h-full w-64 bg-white border-r border-[#E5E5E5] p-6 z-10 flex flex-col justify-between">
-        <div>
-          <div className="flex items-center gap-3 mb-12 px-2">
-            <div className="w-8 h-8 bg-[#1A1A1A] rounded flex items-center justify-center">
-              <FolderKanban className="text-white w-5 h-5" />
+      <nav className="fixed top-0 left-0 h-full w-72 bg-white border-r border-line-muted p-8 z-20 flex flex-col justify-between">
+        <div className="space-y-12">
+          <div className="flex items-center gap-4 px-2">
+            <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center shadow-lg shadow-black/10">
+              <FolderKanban className="text-brand-accent w-6 h-6" />
             </div>
-            <span className="font-semibold text-lg tracking-tight">SolarInstall</span>
+            <div>
+              <h1 className="font-display font-bold text-xl tracking-tight leading-none">HELIO</h1>
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E9E9E] mt-0.5">Systems</p>
+            </div>
           </div>
 
-          <div className="space-y-1">
+          <div className="space-y-2">
+            <p className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#9E9E9E] px-4 mb-4">Workspace</p>
             <NavItem 
-              icon={<LayoutDashboard size={18} />} 
+              icon={<LayoutDashboard size={20} />} 
               label="Overview" 
               active={activeTab === 'Overview'} 
               onClick={() => { setActiveTab('Overview'); navigate('/'); }} 
@@ -99,13 +103,13 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
             {user.role === 'admin' && (
               <>
                 <NavItem 
-                  icon={<Users size={18} />} 
+                  icon={<Users size={20} />} 
                   label="Customers" 
                   active={activeTab === 'Customers'} 
                   onClick={() => { setActiveTab('Customers'); navigate('/'); }} 
                 />
                 <NavItem 
-                  icon={<FolderKanban size={18} />} 
+                  icon={<FolderKanban size={20} />} 
                   label="Installations" 
                   active={activeTab === 'Installations'} 
                   onClick={() => { setActiveTab('Installations'); navigate('/'); }} 
@@ -115,34 +119,43 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
           </div>
         </div>
 
-        <div className="pt-6 border-t border-[#E5E5E5]">
-          <div className="mb-4 px-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#9E9E9E] mb-1">User Profile</p>
-            <p className="font-medium text-sm truncate">{user.name}</p>
-            <p className="text-xs text-[#9E9E9E] truncate">{user.role}</p>
+        <div className="pt-8 border-t border-line-muted">
+          <div className="mb-6 px-4 py-4 bg-brand-primary/5 rounded-2xl">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-[#9E9E9E] mb-2">Authenticator</p>
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-brand-accent font-bold text-xs">
+                {user.name.charAt(0)}
+              </div>
+              <div className="min-w-0">
+                <p className="font-bold text-sm truncate">{user.name}</p>
+                <p className="text-xs text-[#9E9E9E] uppercase tracking-wider font-semibold">{user.role}</p>
+              </div>
+            </div>
           </div>
           <button
             onClick={onLogout}
-            className="flex items-center gap-3 w-full px-2 py-2 text-[#9E9E9E] hover:text-[#1A1A1A] transition-colors duration-200"
+            className="flex items-center gap-3 w-full px-4 py-3 text-[#9E9E9E] hover:text-brand-primary hover:bg-brand-primary/5 rounded-xl transition-all duration-300 group"
           >
-            <LogOut size={18} />
-            <span className="font-medium text-sm">Sign Out</span>
+            <LogOut size={18} className="group-hover:translate-x-0.5 transition-transform" />
+            <span className="font-bold text-sm">Terminate Session</span>
           </button>
         </div>
       </nav>
 
-      <main className="pl-64 min-h-screen p-12">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={location.pathname}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.3, ease: 'easeOut' }}
-          >
-            {children}
-          </motion.div>
-        </AnimatePresence>
+      <main className="pl-72 min-h-screen">
+        <div className="max-w-7xl mx-auto p-12">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={location.pathname + activeTab}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 1.02, y: -10 }}
+              transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+            >
+              {children}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </main>
     </div>
   );
@@ -152,13 +165,22 @@ function NavItem({ icon, label, active, onClick }: { icon: React.ReactNode; labe
   return (
     <button
       onClick={onClick}
-      className={`flex items-center gap-3 w-full px-4 py-3 rounded-lg font-medium text-sm transition-all duration-200 ${
-        active ? 'bg-[#1A1A1A] text-white shadow-lg shadow-black/10' : 'text-[#616161] hover:bg-white hover:text-[#1A1A1A]'
+      className={`flex items-center gap-3 w-full px-4 py-3.5 rounded-xl font-bold text-sm tracking-tight transition-all duration-300 group ${
+        active 
+          ? 'bg-brand-primary text-white shadow-xl shadow-black/20 translate-x-1' 
+          : 'text-[#616161] hover:bg-brand-primary/5 hover:text-brand-primary'
       }`}
     >
-      {icon}
+      <span className={`${active ? 'text-brand-accent' : 'text-[#9E9E9E] group-hover:text-brand-primary'} transition-colors`}>
+        {icon}
+      </span>
       <span>{label}</span>
-      {active && <ChevronRight size={14} className="ml-auto opacity-50" />}
+      {active && (
+        <motion.div 
+          layoutId="active-indicator"
+          className="ml-auto w-1.5 h-1.5 rounded-full bg-brand-accent shadow-[0_0_8px_rgba(255,212,59,0.8)]" 
+        />
+      )}
     </button>
   );
 }

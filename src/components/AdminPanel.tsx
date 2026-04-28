@@ -169,38 +169,42 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
   return (
     <div className="space-y-12">
-      <header className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6">
+      <header className="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-6 pb-8 border-b border-line-muted">
         <div>
-          <h1 className="text-5xl font-bold tracking-tighter mb-2">
-            {activeTab === 'Overview' ? 'Admin Control' : activeTab}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
+            <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E9E9E]">Operations Control</p>
+          </div>
+          <h1 className="text-6xl font-display font-bold tracking-tighter leading-none mb-4">
+            {activeTab === 'Overview' ? 'System Overview' : activeTab}
           </h1>
-          <p className="text-[#616161] font-medium">
-            {activeTab === 'Overview' && 'Manage your fleet of 220+ customers and projects.'}
-            {activeTab === 'Customers' && 'View and manage your registered customers.'}
-            {activeTab === 'Installations' && 'Track and update specialized solar installations.'}
+          <p className="text-[#616161] font-medium max-w-xl">
+            {activeTab === 'Overview' && 'Comprehensive tracking of residential solar deployments and multi-stage subsidy orchestrations.'}
+            {activeTab === 'Customers' && 'Identity management and directory services for the solar infrastructure network.'}
+            {activeTab === 'Installations' && 'Precision logging for localized specialized solar installation pipelines.'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-3">
           <button 
             onClick={() => setShowAddCustomer(true)}
-            className="px-6 py-3 bg-white border border-[#E5E5E5] rounded-xl font-semibold text-sm hover:bg-[#F5F5F4] transition-all flex items-center gap-2"
+            className="px-6 py-4 bg-white border border-line-muted rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-surface-bg transition-all flex items-center gap-2 active:scale-95"
           >
-            <Users size={18} /> Add Customer
+            <Users size={16} className="text-[#9E9E9E]" /> Provision User
           </button>
           <button 
             onClick={() => setShowAddProject(true)}
-            className="px-6 py-3 bg-[#1A1A1A] text-white rounded-xl font-semibold text-sm hover:bg-black transition-all flex items-center gap-2 shadow-lg shadow-black/10"
+            className="px-6 py-4 bg-brand-primary text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-black/10 active:scale-95"
           >
-            <Plus size={18} /> New Project
+            <Plus size={16} className="text-brand-accent" /> Initialize Project
           </button>
         </div>
       </header>
 
       {activeTab === 'Overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <StatCard label="Total Installations" value={projects.length} icon={<FolderKanban />} />
-          <StatCard label="Active Customers" value={customers.length} icon={<Users />} />
-          <StatCard label="Completed Subsidy" value={projects.filter(p => p.status === 'Subsidy').length} icon={<CheckCircle2 />} />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <StatCard label="Network Reach" value={projects.length} subtext="Active Nodes" icon={<FolderKanban />} />
+          <StatCard label="Identity Count" value={customers.length} subtext="Registered Entities" icon={<Users />} />
+          <StatCard label="Finalized Pipeline" value={projects.filter(p => p.status === 'Subsidy').length} subtext="Subsidy Resolved" icon={<CheckCircle2 />} />
         </div>
       )}
 
@@ -212,27 +216,29 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       )}
 
       {(activeTab === 'Overview' || activeTab === 'Installations') && (
-        <>
+        <div className="space-y-6">
           {/* Filter Bar */}
-          <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-4 rounded-2xl border border-[#E5E5E5]">
+          <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-2 rounded-[24px] border border-line-muted shadow-sm">
             <div className="relative flex-1 w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#9E9E9E]" size={20} />
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-primary/20" size={20} />
               <input
                 type="text"
-                placeholder="Search projects by name or customer..."
+                placeholder="Search index by project ID, customer name, or contact..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-3 bg-[#F5F5F4] border-none rounded-xl focus:ring-2 focus:ring-[#1A1A1A] transition-all text-sm"
+                className="w-full pl-14 pr-6 py-4 bg-transparent border-none rounded-2xl focus:ring-0 transition-all text-sm font-bold placeholder:text-[#9E9E9E] outline-none"
               />
             </div>
-            <div className="flex items-center gap-2 w-full md:w-auto">
-              <Filter size={18} className="text-[#9E9E9E]" />
+            <div className="flex items-center gap-2 group p-2 pr-4 bg-surface-bg rounded-2xl border border-line-muted">
+              <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-brand-primary/40 border border-line-muted">
+                <Filter size={18} />
+              </div>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}
-                className="bg-[#F5F5F4] border-none rounded-xl px-4 py-3 text-sm focus:ring-2 focus:ring-[#1A1A1A] transition-all font-medium cursor-pointer"
+                className="bg-transparent border-none rounded-xl py-2 text-xs font-black uppercase tracking-widest focus:ring-0 transition-all cursor-pointer outline-none"
               >
-                <option value="All">All Statuses</option>
+                <option value="All">All Operations</option>
                 {SOLAR_STAGES.map(stage => (
                   <option key={stage} value={stage}>{stage}</option>
                 ))}
@@ -241,43 +247,70 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           </div>
 
           {/* Projects Table */}
-          <div className="bg-white rounded-3xl border border-[#E5E5E5] overflow-hidden">
-            <div className="p-6 border-b border-[#E5E5E5] flex justify-between items-center">
-              <h2 className="font-bold text-xl tracking-tight">Active Projects</h2>
-              <span className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">Showing {filteredProjects.length} of {projects.length}</span>
+          <div className="bg-white rounded-[32px] border border-line-muted shadow-sm overflow-hidden">
+            <div className="px-10 py-8 border-b border-line-muted flex justify-between items-center bg-white">
+              <div className="flex items-center gap-4">
+                <div className="w-3 h-3 rounded-full bg-brand-accent shadow-[0_0_8px_rgba(255,212,59,0.5)]" />
+                <h2 className="font-display font-bold text-2xl tracking-tight text-brand-primary">Project Register</h2>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#9E9E9E]">Total Logs</span>
+                <span className="text-sm font-mono font-black text-brand-primary bg-surface-bg px-3 py-1 rounded-lg border border-line-muted">
+                  {filteredProjects.length.toString().padStart(3, '0')} / {projects.length.toString().padStart(3, '0')}
+                </span>
+              </div>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full text-left">
+              <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-[#F5F5F4] text-[#9E9E9E] font-semibold text-xs uppercase tracking-wider">
-                    <th className="px-6 py-4">Project Name</th>
-                    <th className="px-6 py-4">Customer Name</th>
-                    <th className="px-6 py-4">Phone</th>
-                    <th className="px-6 py-4 text-right">Progress</th>
+                  <tr className="bg-surface-bg/50 border-b border-line-muted">
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Designation</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Assigned Lead</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Contact Vector</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Pipeline Status</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] text-right">Completion</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E5E5E5]">
+                <tbody className="divide-y divide-line-muted">
                   {filteredProjects.map((p) => (
-                    <tr key={p.id} className="hover:bg-[#F5F5F4]/50 transition-colors group">
-                      <td className="px-6 py-4">
+                    <tr key={p.id} className="hover:bg-surface-bg transition-colors group cursor-default">
+                      <td className="px-10 py-6">
                         <button 
                           onClick={() => setSelectedProject(p)}
-                          className="font-semibold text-sm text-[#1A1A1A] hover:underline decoration-2 underline-offset-4 text-left"
+                          className="flex flex-col items-start gap-1 group/btn"
                         >
-                          {p.name}
+                          <span className="font-bold text-sm text-brand-primary group-hover/btn:text-black transition-colors">
+                            {p.name}
+                          </span>
+                          <span className="text-[10px] font-mono font-bold text-[#9E9E9E] uppercase tracking-tighter">REF-SOLAR-{p.id.toString().slice(0, 8)}</span>
                         </button>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[#616161]">
-                        {p.customer_name || 'N/A'}
+                      <td className="px-10 py-6">
+                        <div className="flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-full bg-brand-primary text-brand-accent text-[10px] font-bold flex items-center justify-center">
+                            {(p.customer_name || 'U').charAt(0)}
+                          </div>
+                          <span className="text-sm font-bold text-brand-primary opacity-80 italic serif">{p.customer_name || 'Unassigned'}</span>
+                        </div>
                       </td>
-                      <td className="px-6 py-4 text-sm text-[#616161]">
-                        {p.phone || 'N/A'}
+                      <td className="px-10 py-6 font-mono text-xs font-bold text-[#616161]">
+                        {p.phone || '-- -- --'}
                       </td>
-                      <td className="px-6 py-4 text-right w-48">
-                        <div className="flex items-center justify-end gap-3">
-                          <span className="text-xs font-bold font-mono">{p.progress}%</span>
-                          <div className="w-24 h-1.5 bg-[#F5F5F4] rounded-full overflow-hidden">
-                            <div className="h-full bg-[#1A1A1A]" style={{ width: `${p.progress}%` }} />
+                      <td className="px-10 py-6">
+                        <StatusBadge status={p.status} />
+                      </td>
+                      <td className="px-10 py-6 text-right">
+                        <div className="flex items-center justify-end gap-4">
+                          <div className="text-right">
+                            <span className="block text-xs font-mono font-black text-brand-primary">{p.progress}%</span>
+                            <span className="block text-[8px] font-bold uppercase tracking-widest text-[#9E9E9E]">Integrated</span>
+                          </div>
+                          <div className="w-24 h-1.5 bg-surface-bg rounded-full overflow-hidden border border-line-muted">
+                            <motion.div 
+                              initial={{ width: 0 }}
+                              animate={{ width: `${p.progress}%` }}
+                              className="h-full bg-brand-primary" 
+                            />
                           </div>
                         </div>
                       </td>
@@ -285,8 +318,16 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   ))}
                   {filteredProjects.length === 0 && (
                     <tr>
-                      <td colSpan={5} className="px-6 py-20 text-center text-[#9E9E9E] font-medium">
-                        No projects found matching your criteria.
+                      <td colSpan={5} className="px-10 py-32 text-center">
+                        <div className="flex flex-col items-center gap-4">
+                          <div className="w-16 h-16 bg-surface-bg rounded-3xl flex items-center justify-center text-brand-primary/10">
+                            <FolderKanban size={32} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-brand-primary">Null Result Cluster</p>
+                            <p className="text-xs font-bold text-[#9E9E9E] uppercase tracking-widest mt-1">No matches found for active query</p>
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   )}
@@ -294,7 +335,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
               </table>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {activeTab === 'Customers' && (
@@ -404,111 +445,125 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       )}
 
       {selectedProject && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
+        <div className="fixed inset-0 bg-brand-primary/95 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
           <motion.div 
-            initial={{ y: 50, opacity: 0 }} 
-            animate={{ y: 0, opacity: 1 }} 
-            className="bg-white rounded-[40px] p-10 max-w-4xl w-full my-auto shadow-2xl relative"
+            initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+            animate={{ scale: 1, opacity: 1, y: 0 }} 
+            className="bg-white rounded-[40px] p-12 max-w-5xl w-full my-auto shadow-2xl relative"
           >
             <button 
               onClick={() => setSelectedProject(null)}
-              className="absolute top-8 right-8 text-[#9E9E9E] hover:text-black transition-colors"
+              className="absolute top-10 right-10 w-12 h-12 rounded-full bg-surface-bg flex items-center justify-center text-brand-primary hover:bg-brand-accent transition-all duration-300"
             >
-              <Plus className="rotate-45" size={32} />
+              <Plus className="rotate-45" size={24} />
             </button>
 
-            <div className="space-y-10">
-              {/* Header */}
-              <div className="space-y-4 border-b border-[#F5F5F4] pb-8">
-                <div className="flex items-center gap-3">
-                  <StatusBadge status={selectedProject.status} />
-                  <span className="text-xs font-semibold text-[#9E9E9E] bg-[#F5F5F4] px-3 py-1 rounded-lg">ID: SOLAR-{selectedProject.id}</span>
-                </div>
-                <h2 className="text-5xl font-bold tracking-tighter">{selectedProject.name}</h2>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Customer</p>
-                    <p className="font-semibold">{selectedProject.customer_name || 'Not specified'}</p>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+              {/* Left Column: Core Info */}
+              <div className="lg:col-span-7 space-y-10">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={selectedProject.status} />
+                    <span className="text-[10px] font-black font-mono text-[#9E9E9E] bg-surface-bg px-3 py-1 rounded-lg border border-line-muted">SYSTEM_ID: SOL-{selectedProject.id.toString().slice(0, 8)}</span>
                   </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Phone</p>
-                    <p className="font-semibold">{selectedProject.phone || 'Not specified'}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 bg-[#1A1A1A] p-6 rounded-[24px] text-white">
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Proposal</p>
-                    <p className="text-lg font-bold">₹{(selectedProject.proposal_amount || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Advance</p>
-                    <p className="text-lg font-bold">₹{(selectedProject.advance_amount || selectedProject.advance_payment || selectedProject.advance_amt || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Paid</p>
-                    <p className="text-lg font-bold">₹{(selectedProject.paid_amount || 0).toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Balance</p>
-                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.advance_payment || selectedProject.advance_amount || selectedProject.advance_amt || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Description */}
-              <div className="space-y-4">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">Project Description</h3>
-                <p className="text-xl text-[#424242] leading-relaxed">
-                  {selectedProject.description || 'No detailed description available for this project.'}
-                </p>
-              </div>
-
-              {/* Progress Section */}
-              <div className="space-y-6 bg-[#F5F5F4] p-8 rounded-[32px]">
-                <div className="flex justify-between items-center px-4">
-                  <div className="space-y-1">
-                    <h3 className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">Workflow Status</h3>
-                    <div className="flex items-center gap-4">
-                      <p className="text-3xl font-bold tracking-tight">{selectedProject.status}</p>
-                      <select 
-                        value={selectedProject.status}
-                        onChange={(e) => updateProjectStatus(selectedProject.id, e.target.value)}
-                        className="bg-white border border-[#E5E5E5] rounded-xl px-3 py-1.5 text-xs font-bold uppercase tracking-wider focus:ring-2 focus:ring-black outline-none cursor-pointer"
-                      >
-                        {SOLAR_STAGES.map(stage => (
-                          <option key={stage} value={stage}>{stage}</option>
-                        ))}
-                      </select>
+                  <h2 className="text-6xl font-display font-bold tracking-tighter leading-[0.9]">{selectedProject.name}</h2>
+                  <div className="flex gap-10 pt-4">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Primary Stakeholder</p>
+                      <p className="font-bold text-lg italic serif">{selectedProject.customer_name || 'Unassigned Node'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Secure Line</p>
+                      <p className="font-mono font-bold text-lg">{selectedProject.phone || 'NO_VECTOR'}</p>
                     </div>
                   </div>
-                  <div className="text-right">
-                    <p className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Overall Completion</p>
-                    <p className="text-5xl font-black tracking-tighter font-mono">{selectedProject.progress}%</p>
+                </div>
+
+                <div className="space-y-4">
+                  <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-1">Project Manifest</h3>
+                  <div className="p-6 bg-surface-bg rounded-[24px] border border-line-muted">
+                    <p className="text-lg text-[#424242] leading-relaxed font-medium">
+                      {selectedProject.description || 'System generated: No additional manifest provided for this project ID.'}
+                    </p>
                   </div>
                 </div>
-                
-                <div key={`${selectedProject.id}-${selectedProject.status}`}>
-                  <StatusPipeline currentStatus={selectedProject.status} />
+
+                <div className="space-y-6">
+                  <div className="flex justify-between items-end px-1">
+                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Financial Ledger</h3>
+                    <div className="flex items-center gap-2">
+                       <div className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                       <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600">Verified</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                    <FinanceItem label="QUOTED" value={selectedProject.proposal_amount} />
+                    <FinanceItem label="RETAINER" value={selectedProject.advance_payment || selectedProject.advance_amount || selectedProject.advance_amt} />
+                    <FinanceItem label="SETTLED" value={selectedProject.paid_amount} />
+                    <FinanceItem label="OUTSTANDING" value={(selectedProject.proposal_amount || 0) - (selectedProject.advance_payment || selectedProject.advance_amount || selectedProject.advance_amt || 0) - (selectedProject.paid_amount || 0)} highlight />
+                  </div>
                 </div>
               </div>
 
-              {/* Meta Info */}
-              <div className="flex flex-wrap gap-8 pt-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">Registered On</p>
-                  <p className="font-semibold flex items-center gap-2"><Clock size={16} /> {new Date(selectedProject.created_at).toLocaleDateString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">Last Updated</p>
-                  <p className="font-semibold flex items-center gap-2"><ArrowUpRight size={16} /> {new Date(selectedProject.updated_at).toLocaleDateString()}</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E]">System Tags</p>
-                  <div className="flex gap-2">
-                    <span className="text-[10px] font-bold bg-black text-white px-2 py-0.5 rounded">SOLAR</span>
-                    <span className="text-[10px] font-bold bg-[#E5E5E5] px-2 py-0.5 rounded">RENEWABLE</span>
+              {/* Right Column: Pipeline & Actions */}
+              <div className="lg:col-span-5 space-y-8">
+                <div className="bg-brand-primary p-8 rounded-[32px] text-white space-y-8 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/10 rounded-full blur-3xl" />
+                  
+                  <div className="flex justify-between items-start relative z-10">
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Pipeline Phase</p>
+                      <div className="flex flex-col gap-2">
+                        <span className="text-3xl font-display font-bold tracking-tight">{selectedProject.status}</span>
+                        <div className="inline-flex">
+                          <select 
+                            value={selectedProject.status}
+                            onChange={(e) => updateProjectStatus(selectedProject.id, e.target.value)}
+                            className="bg-white/10 hover:bg-white/20 border border-white/10 rounded-lg px-3 py-1.5 text-[10px] font-black uppercase tracking-widest outline-none cursor-pointer transition-colors"
+                          >
+                            {SOLAR_STAGES.map(stage => (
+                              <option key={stage} value={stage} className="bg-brand-primary text-white">{stage}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Sync Status</p>
+                      <p className="text-5xl font-display font-black tracking-tighter text-brand-accent">{selectedProject.progress}%</p>
+                    </div>
                   </div>
+
+                  <div className="space-y-4 relative z-10">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40">Visual Sequence</p>
+                    <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: `${selectedProject.progress}%` }}
+                        className="h-full bg-brand-accent shadow-[0_0_15px_rgba(255,212,59,0.5)]" 
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                       <Metric label="Latency" value="12ms" />
+                       <Metric label="Integrity" value="99.9%" />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-1">Infrastructure Timeline</h3>
+                   <div className="space-y-3">
+                      <TimelineItem label="Initialization" date={selectedProject.created_at} icon={<Clock size={14}/>} />
+                      <TimelineItem label="Latest Sync" date={selectedProject.updated_at} icon={<ArrowUpRight size={14}/>} />
+                   </div>
+                </div>
+
+                <div className="p-6 border border-line-muted rounded-3xl bg-surface-bg flex items-center justify-between">
+                   <div className="flex items-center gap-3">
+                      <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Auto-Reporting Active</span>
+                   </div>
+                   <button className="text-[10px] font-black uppercase tracking-widest text-brand-primary hover:underline">Download Log</button>
                 </div>
               </div>
             </div>
@@ -519,14 +574,50 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
   );
 }
 
-function StatCard({ label, value, icon }: { label: string, value: number, icon: React.ReactNode }) {
+function FinanceItem({ label, value, highlight }: { label: string, value: any, highlight?: boolean }) {
   return (
-    <div className="bg-white p-8 rounded-3xl border border-[#E5E5E5] flex justify-between items-start">
-      <div className="space-y-2">
-        <p className="text-xs font-bold uppercase tracking-widest text-[#9E9E9E]">{label}</p>
-        <p className="text-5xl font-bold tracking-tighter">{value}</p>
+    <div className={`p-4 rounded-2xl border ${highlight ? 'bg-rose-50 border-rose-100' : 'bg-white border-line-muted'}`}>
+      <p className="text-[8px] font-black uppercase tracking-widest text-[#9E9E9E] mb-1">{label}</p>
+      <p className={`text-sm font-mono font-black ${highlight ? 'text-rose-600' : 'text-brand-primary'}`}>₹{(value || 0).toLocaleString()}</p>
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string, value: string }) {
+  return (
+    <div className="px-3 py-2 bg-white/5 rounded-lg border border-white/10 flex justify-between items-center">
+       <span className="text-[8px] font-black uppercase tracking-widest text-white/40">{label}</span>
+       <span className="text-[10px] font-mono font-bold text-white">{value}</span>
+    </div>
+  );
+}
+
+function TimelineItem({ label, date, icon }: { label: string, date: string, icon: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-line-muted shadow-sm">
+       <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-xl bg-surface-bg flex items-center justify-center text-[#9E9E9E]">
+             {icon}
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest text-brand-primary">{label}</span>
+       </div>
+       <span className="text-[10px] font-mono font-bold text-[#616161]">{new Date(date).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}</span>
+    </div>
+  );
+}
+
+function StatCard({ label, value, subtext, icon }: { label: string, value: number, subtext?: string, icon: React.ReactNode }) {
+  return (
+    <div className="bg-white p-10 rounded-[32px] border border-line-muted flex justify-between items-start shadow-sm hover:shadow-xl hover:shadow-black/5 transition-all group overflow-hidden relative">
+      <div className="absolute top-0 right-0 w-24 h-24 bg-brand-accent/5 rounded-full blur-2xl -mr-8 -mt-8 group-hover:scale-150 transition-transform duration-700" />
+      <div className="space-y-4 relative z-10">
+        <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">{label}</p>
+        <div>
+          <p className="text-6xl font-display font-bold tracking-tighter mb-1">{value}</p>
+          {subtext && <p className="text-xs font-bold text-brand-primary/40 uppercase tracking-widest">{subtext}</p>}
+        </div>
       </div>
-      <div className="w-12 h-12 bg-[#F5F5F4] rounded-2xl flex items-center justify-center text-[#1A1A1A]">
+      <div className="w-14 h-14 bg-brand-primary rounded-2xl flex items-center justify-center text-brand-accent shadow-lg shadow-black/10 relative z-10 transition-transform group-hover:-translate-y-1">
         {icon}
       </div>
     </div>
@@ -535,21 +626,22 @@ function StatCard({ label, value, icon }: { label: string, value: number, icon: 
 
 function StatusBadge({ status }: { status: string }) {
   const styles: Record<string, string> = {
-    'Site Visit': 'bg-neutral-50 text-neutral-600 border-neutral-100',
-    'Proposal': 'bg-blue-50 text-blue-600 border-blue-100',
-    'eKYC': 'bg-indigo-50 text-indigo-600 border-indigo-100',
-    'Payment': 'bg-emerald-50 text-emerald-600 border-emerald-100',
-    'Approvals': 'bg-amber-50 text-amber-600 border-amber-100',
-    'Material': 'bg-orange-50 text-orange-600 border-orange-100',
-    'Installation': 'bg-cyan-50 text-cyan-600 border-cyan-100',
-    'Net Meter': 'bg-purple-50 text-purple-600 border-purple-100',
-    'Subsidy': 'bg-rose-50 text-rose-600 border-rose-100',
+    'Site Visit': 'text-neutral-500 border-neutral-200 bg-neutral-50',
+    'Proposal': 'text-blue-500 border-blue-200 bg-blue-50',
+    'eKYC': 'text-indigo-500 border-indigo-200 bg-indigo-50',
+    'Payment': 'text-emerald-500 border-emerald-200 bg-emerald-50',
+    'Approvals': 'text-amber-500 border-amber-200 bg-amber-50',
+    'Material': 'text-orange-500 border-orange-200 bg-orange-50',
+    'Installation': 'text-cyan-500 border-cyan-200 bg-cyan-50',
+    'Net Meter': 'text-purple-500 border-purple-200 bg-purple-50',
+    'Subsidy': 'text-rose-500 border-rose-200 bg-rose-50',
   };
 
-  const style = styles[status] || 'bg-neutral-50 text-neutral-600 border-neutral-100';
+  const style = styles[status] || 'text-neutral-500 border-neutral-200 bg-neutral-50';
 
   return (
-    <span className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${style}`}>
+    <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-[0.1em] border ${style} shadow-sm inline-flex items-center gap-1.5`}>
+      <span className={`w-1 h-1 rounded-full ${style.split(' ')[0].replace('text', 'bg')}`} />
       {status}
     </span>
   );

@@ -12,19 +12,19 @@ export function StatusPipeline({ currentStatus }: StatusPipelineProps) {
   const currentIndex = SOLAR_STAGES.indexOf(currentStatus);
 
   return (
-    <div className="py-8 overflow-x-auto scrollbar-hide">
-      <div className="relative min-w-[900px] px-8">
+    <div className="py-12 overflow-x-auto scrollbar-hide">
+      <div className="relative min-w-[1000px] px-12">
         {/* Progress Background Track */}
-        <div className="absolute top-6 left-12 right-12 h-1 bg-[#F5F5F4] rounded-full" />
+        <div className="absolute top-6 left-16 right-16 h-0.5 bg-brand-primary/5 rounded-full" />
         
         {/* Active Progress Track */}
         <motion.div 
           initial={{ width: 0 }}
           animate={{ 
-            width: `calc(${(currentIndex / (SOLAR_STAGES.length - 1)) * 100}% - ${currentIndex === 0 ? 0 : 24}px)` 
+            width: `calc(${(currentIndex / (SOLAR_STAGES.length - 1)) * 100}% - ${currentIndex === 0 ? 0 : 32}px)` 
           }}
-          transition={{ duration: 0.8, ease: "circOut" }}
-          className="absolute top-6 left-12 h-1 bg-black rounded-full z-10"
+          transition={{ duration: 1.2, ease: [0.16, 1, 0.3, 1] }}
+          className="absolute top-6 left-16 h-0.5 bg-brand-primary rounded-full z-10 shadow-[0_0_10px_rgba(0,0,0,0.1)]"
         />
 
         {/* Milestones */}
@@ -35,45 +35,44 @@ export function StatusPipeline({ currentStatus }: StatusPipelineProps) {
             const isPending = idx > currentIndex;
 
             return (
-              <div key={stage} className="flex flex-col items-center gap-3 w-24">
+              <div key={stage} className="flex flex-col items-center gap-5 w-28">
                 {/* Node */}
                 <motion.div 
                   initial={{ scale: 0.8, opacity: 0 }}
                   animate={{ 
-                    scale: isActive ? 1.25 : 1,
+                    scale: isActive ? 1.1 : 1,
                     opacity: 1,
-                    borderColor: isActive || isCompleted ? '#000000' : '#E5E5E5',
-                    backgroundColor: isCompleted ? '#000000' : '#FFFFFF'
+                    backgroundColor: isCompleted ? '#1A1A1A' : isActive ? '#FFD43B' : '#FFFFFF',
+                    borderColor: isCompleted ? '#1A1A1A' : isActive ? '#1A1A1A' : '#E9ECEF'
                   }}
-                  transition={{ duration: 0.3 }}
-                  className={`w-12 h-12 rounded-full flex items-center justify-center border-4 z-20 shadow-sm ${
-                    isActive ? 'shadow-lg shadow-black/10' : ''
+                  transition={{ duration: 0.4 }}
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center border-2 z-20 transition-all duration-500 ${
+                    isActive ? 'shadow-xl shadow-brand-accent/20' : isCompleted ? 'shadow-lg shadow-black/5' : ''
                   }`}
                 >
                   {isCompleted ? (
-                    <CheckCircle2 size={20} className="text-white" />
+                    <CheckCircle2 size={18} className="text-brand-accent" strokeWidth={3} />
                   ) : isActive ? (
-                    <div className="w-3 h-3 rounded-full bg-black animate-pulse" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-brand-primary animate-pulse" />
                   ) : (
-                    <Circle size={16} className="text-[#9E9E9E]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-[#E9ECEF]" />
                   )}
                 </motion.div>
 
                 {/* Label */}
                 <div className="text-center px-1">
-                  <p className={`text-[10px] font-black uppercase tracking-tighter leading-tight ${
-                    isActive ? 'text-black' : isCompleted ? 'text-[#424242]' : 'text-[#9E9E9E]'
+                  <p className={`text-[9px] font-black uppercase tracking-[0.15em] leading-tight transition-colors duration-500 ${
+                    isActive ? 'text-brand-primary' : isCompleted ? 'text-brand-primary/60' : 'text-[#9E9E9E]'
                   }`}>
                     {stage}
                   </p>
                   {isActive && (
-                    <motion.span 
-                      initial={{ opacity: 0, y: 5 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="text-[8px] font-bold text-black/40 uppercase tracking-widest mt-1 block"
+                    <motion.div 
+                      layoutId="current-badge"
+                      className="mt-2 px-2 py-0.5 bg-brand-primary rounded-md inline-block"
                     >
-                      Active
-                    </motion.span>
+                      <span className="text-[7px] font-black text-brand-accent uppercase tracking-widest whitespace-nowrap">Current Node</span>
+                    </motion.div>
                   )}
                 </div>
               </div>
