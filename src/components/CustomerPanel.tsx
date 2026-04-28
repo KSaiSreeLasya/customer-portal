@@ -158,7 +158,7 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Advance</p>
-            <p className="font-bold">₹{(project.advance_amount || 0).toLocaleString()}</p>
+            <p className="font-bold">₹{(project.advance_amount || project.advance_payment || project.advance_amt || 0).toLocaleString()}</p>
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1">Paid</p>
@@ -166,7 +166,7 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
           </div>
           <div>
             <p className="text-[10px] font-bold uppercase tracking-widest text-[#9E9E9E] mb-1 text-rose-500">Balance</p>
-            <p className="font-bold text-rose-600">₹{((project.proposal_amount || 0) - (project.paid_amount || 0)).toLocaleString()}</p>
+            <p className="font-bold text-rose-600">₹{((project.proposal_amount || 0) - (project.advance_amount || project.advance_payment || project.advance_amt || 0) - (project.paid_amount || 0)).toLocaleString()}</p>
           </div>
         </div>
 

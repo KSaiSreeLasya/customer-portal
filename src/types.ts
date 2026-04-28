@@ -19,6 +19,8 @@ export interface Project {
   proposal_amount?: number;
   paid_amount?: number;
   advance_amount?: number;
+  advance_payment?: number;
+  advance_amt?: number;
   balance_amount?: number;
   created_at: string;
   updated_at: string;

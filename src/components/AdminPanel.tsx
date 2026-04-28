@@ -89,7 +89,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           proposal_amount: proposalAmount ? parseFloat(proposalAmount) : 0,
           paid_amount: paidAmount ? parseFloat(paidAmount) : 0,
           advance_amount: advanceAmount ? parseFloat(advanceAmount) : 0,
-          balance_amount: (proposalAmount ? parseFloat(proposalAmount) : 0) - (paidAmount ? parseFloat(paidAmount) : 0),
+          balance_amount: (proposalAmount ? parseFloat(proposalAmount) : 0) - (advanceAmount ? parseFloat(advanceAmount) : 0) - (paidAmount ? parseFloat(paidAmount) : 0),
           status: initialStatus,
           progress: progress
         }])
@@ -437,7 +437,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Advance</p>
-                    <p className="text-lg font-bold">₹{(selectedProject.advance_amount || 0).toLocaleString()}</p>
+                    <p className="text-lg font-bold">₹{(selectedProject.advance_amount || selectedProject.advance_payment || selectedProject.advance_amt || 0).toLocaleString()}</p>
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Paid</p>
@@ -445,7 +445,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                   </div>
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">Balance</p>
-                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
+                    <p className="text-lg font-bold text-rose-400">₹{((selectedProject.proposal_amount || 0) - (selectedProject.advance_amount || selectedProject.advance_payment || selectedProject.advance_amt || 0) - (selectedProject.paid_amount || 0)).toLocaleString()}</p>
                   </div>
                 </div>
               </div>

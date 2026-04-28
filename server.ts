@@ -3,7 +3,7 @@ import { createServer as createViteServer } from 'vite';
 import path from 'path';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import db from './db.js';
+import db from './db';
 import dotenv from 'dotenv';
 
 dotenv.config();
