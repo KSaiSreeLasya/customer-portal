@@ -15,28 +15,69 @@ export default function CustomerPanel({ user, token }: { user: User; token: stri
   const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
+    if (!token || token.trim() === '') {
+      console.warn('No valid token available for customer');
+      setError('Authentication token missing. Please login again.');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Token available, fetching projects');
     fetchProjects();
-  }, []);
+  }, [token]);
+
+  const handleAuthError = () => {
+    // Clear invalid token and redirect to login
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
   const fetchProjects = async () => {
     try {
+      console.log('Fetching projects with token length:', token?.length);
+
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
       const res = await fetch('/api/projects', {
+        method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/json'
         }
       });
 
+      console.log('API Response status:', res.status, res.statusText);
+
+      // Handle authentication errors - invalid or expired token
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Authentication failed - invalid or expired token');
+        handleAuthError();
+        return;
+      }
+
+      // Try to parse error response
+      let errorMsg = '';
       if (!res.ok) {
-        throw new Error(`Failed to fetch projects: ${res.statusText}`);
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || `HTTP ${res.status}: ${res.statusText || 'Unknown'}`;
+        } catch {
+          errorMsg = `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+        }
+        throw new Error(`Server error: ${errorMsg}`);
       }
 
       const data = await res.json();
+      console.log('Projects fetched successfully:', data?.length || 0, 'projects');
       setProjects(data || []);
       setError(null);
     } catch (err: any) {
+      const errorMsg = err.message || err.toString() || 'Unknown error occurred';
       console.error('Customer fetch error:', err);
-      setError(err.message || 'Failed to fetch projects');
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

@@ -28,8 +28,12 @@ const STAGE_PROGRESS: Record<string, number> = {
 };
 
 // Request logging middleware
-app.use((req, _res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Status: ${res.statusCode} - ${duration}ms`);
+  });
   next();
 });
 
@@ -95,10 +99,16 @@ const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.sendStatus(401);
+  if (!token) {
+    console.error('Missing authorization token');
+    return res.status(401).json({ error: 'Authorization token required' });
+  }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.sendStatus(403);
+    if (err) {
+      console.error('Token verification failed:', err.message);
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
     req.user = user;
     next();
   });
@@ -187,23 +197,32 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
 
 // Project routes
 app.get('/api/projects', authenticateToken, (req: any, res) => {
-  if (req.user.role === 'admin') {
-    const projects = db.prepare(`
-      SELECT p.*, GROUP_CONCAT(u.name) as assigned_customers
-      FROM projects p
-      LEFT JOIN user_projects up ON p.id = up.project_id
-      LEFT JOIN users u ON up.user_id = u.id
-      GROUP BY p.id
-    `).all();
-    res.json(projects);
-  } else {
-    // Return projects matching customer name and phone
-    const projects = db.prepare(`
-      SELECT *
-      FROM projects
-      WHERE customer_name = ? AND phone = ?
-    `).all(req.user.name, req.user.phone);
-    res.json(projects);
+  try {
+    console.log('Getting projects for user:', req.user);
+
+    if (req.user.role === 'admin') {
+      const projects = db.prepare(`
+        SELECT p.*, GROUP_CONCAT(u.name) as assigned_customers
+        FROM projects p
+        LEFT JOIN user_projects up ON p.id = up.project_id
+        LEFT JOIN users u ON up.user_id = u.id
+        GROUP BY p.id
+      `).all();
+      return res.json(projects);
+    } else {
+      // Return projects matching customer name and phone
+      console.log(`Fetching projects for customer: name=${req.user.name}, phone=${req.user.phone}`);
+      const projects = db.prepare(`
+        SELECT *
+        FROM projects
+        WHERE customer_name = ? AND phone = ?
+      `).all(req.user.name, req.user.phone);
+      console.log(`Found ${projects?.length || 0} projects`);
+      return res.json(projects || []);
+    }
+  } catch (err: any) {
+    console.error('Projects endpoint error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch projects' });
   }
 });
 
