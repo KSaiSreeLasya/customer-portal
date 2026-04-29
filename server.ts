@@ -111,46 +111,61 @@ const isAdmin = (req: any, res: any, next: any) => {
 
 // Auth Routes
 app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  try {
+    const { email, password } = req.body;
 
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
+    return res.status(200).json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+  } catch (err: any) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
-
-  const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
-  res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
 });
 
 app.post('/api/auth/customer-login', (req, res) => {
-  const { name, phone } = req.body;
-  
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Customer name and phone number are required' });
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Customer name and phone number are required' });
+    }
+
+    const project = db.prepare('SELECT * FROM projects WHERE customer_name = ? AND phone = ?').get(name, phone);
+
+    if (!project) {
+      return res.status(404).json({ error: 'No project found with these details. Please contact your administrator.' });
+    }
+
+    const token = jwt.sign({
+      id: `cust_${phone}`,
+      name,
+      phone,
+      role: 'customer'
+    }, JWT_SECRET, { expiresIn: '24h' });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: `cust_${phone}`,
+        name,
+        phone,
+        role: 'customer'
+      }
+    });
+  } catch (err: any) {
+    console.error('Customer login error:', err);
+    return res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
-
-  const project = db.prepare('SELECT * FROM projects WHERE customer_name = ? AND phone = ?').get(name, phone);
-
-  if (!project) {
-    return res.status(404).json({ error: 'No project found with these details. Please contact your administrator.' });
-  }
-
-  const token = jwt.sign({ 
-    id: `cust_${phone}`, 
-    name, 
-    phone, 
-    role: 'customer' 
-  }, JWT_SECRET, { expiresIn: '24h' });
-
-  res.json({ 
-    token, 
-    user: { 
-      id: `cust_${phone}`, 
-      name, 
-      phone, 
-      role: 'customer' 
-    } 
-  });
 });
 
 // User routes (Admin Only)
