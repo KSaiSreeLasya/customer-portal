@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Lock, Loader2, ArrowRight, FolderKanban } from 'lucide-react';
 import { User } from '../types';
-import { supabase } from '../lib/supabase';
 
 export default function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
   const [mode, setMode] = useState<'admin' | 'customer'>('customer');
@@ -38,27 +37,24 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
 
         onLogin(data.user, data.token);
       } else {
-        // Customer Mode: Direct Supabase Lookup
-        const { data: projects, error: sbError } = await supabase
-          .from('projects')
-          .select('*')
-          .eq('customer_name', customerName)
-          .eq('phone', phone)
-          .limit(1);
+        // Customer Mode: Backend Authentication
+        const res = await fetch('/api/auth/customer-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: customerName, phone }),
+        });
 
-        if (sbError) throw sbError;
-
-        if (!projects || projects.length === 0) {
-          throw new Error('No project found with these details. Please contact your administrator.');
+        const contentType = res.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+          const text = await res.text();
+          console.error('Non-JSON customer login response:', text);
+          throw new Error(`Server error (${res.status}). Please try again later.`);
         }
 
-        const mockUser: User = {
-          id: `cust_${phone}`,
-          name: customerName,
-          phone: phone,
-          role: 'customer'
-        };
-        onLogin(mockUser, 'supabase-anon-token');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Login failed');
+
+        onLogin(data.user, data.token);
       }
     } catch (err: any) {
       setError(err.message);

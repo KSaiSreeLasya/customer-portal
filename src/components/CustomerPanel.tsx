@@ -3,10 +3,9 @@ import { motion } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
 import { Project, User } from '../types';
 import { SOLAR_STAGES } from '../constants';
-import { supabase } from '../lib/supabase';
 import { StatusPipeline } from './StatusPipeline';
 
-export default function CustomerPanel({ user }: { user: User }) {
+export default function CustomerPanel({ user, token }: { user: User; token: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -16,23 +15,69 @@ export default function CustomerPanel({ user }: { user: User }) {
   const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
+    if (!token || token.trim() === '') {
+      console.warn('No valid token available for customer');
+      setError('Authentication token missing. Please login again.');
+      setLoading(false);
+      return;
+    }
+
+    console.log('Token available, fetching projects');
     fetchProjects();
-  }, []);
+  }, [token]);
+
+  const handleAuthError = () => {
+    // Clear invalid token and redirect to login
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    window.location.href = '/login';
+  };
 
   const fetchProjects = async () => {
     try {
-      const { data, error: sbError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('customer_name', user.name)
-        .eq('phone', user.phone);
-      
-      if (sbError) throw sbError;
+      console.log('Fetching projects with token length:', token?.length);
+
+      if (!token) {
+        throw new Error('No authentication token available');
+      }
+
+      const res = await fetch('/api/projects', {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      console.log('API Response status:', res.status, res.statusText);
+
+      // Handle authentication errors - invalid or expired token
+      if (res.status === 401 || res.status === 403) {
+        console.warn('Authentication failed - invalid or expired token');
+        handleAuthError();
+        return;
+      }
+
+      // Try to parse error response
+      let errorMsg = '';
+      if (!res.ok) {
+        try {
+          const errorData = await res.json();
+          errorMsg = errorData.error || `HTTP ${res.status}: ${res.statusText || 'Unknown'}`;
+        } catch {
+          errorMsg = `HTTP ${res.status}: ${res.statusText || 'Unknown error'}`;
+        }
+        throw new Error(`Server error: ${errorMsg}`);
+      }
+
+      const data = await res.json();
+      console.log('Projects fetched successfully:', data?.length || 0, 'projects');
       setProjects(data || []);
       setError(null);
     } catch (err: any) {
+      const errorMsg = err.message || err.toString() || 'Unknown error occurred';
       console.error('Customer fetch error:', err);
-      setError(err.message || 'Failed to fetch projects from Supabase');
+      setError(errorMsg);
     } finally {
       setLoading(false);
     }

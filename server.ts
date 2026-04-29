@@ -28,8 +28,12 @@ const STAGE_PROGRESS: Record<string, number> = {
 };
 
 // Request logging middleware
-app.use((req, _res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.url}`);
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    console.log(`${new Date().toISOString()} - ${req.method} ${req.url} - Status: ${res.statusCode} - ${duration}ms`);
+  });
   next();
 });
 
@@ -95,10 +99,16 @@ const authenticateToken = (req: any, res: any, next: any) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) return res.sendStatus(401);
+  if (!token) {
+    console.error('Missing authorization token');
+    return res.status(401).json({ error: 'Authorization token required' });
+  }
 
   jwt.verify(token, JWT_SECRET, (err: any, user: any) => {
-    if (err) return res.sendStatus(403);
+    if (err) {
+      console.error('Token verification failed:', err.message);
+      return res.status(403).json({ error: 'Invalid or expired token' });
+    }
     req.user = user;
     next();
   });
@@ -111,46 +121,61 @@ const isAdmin = (req: any, res: any, next: any) => {
 
 // Auth Routes
 app.post('/api/auth/login', (req, res) => {
-  const { email, password } = req.body;
-  const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+  try {
+    const { email, password } = req.body;
 
-  if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.status(401).json({ error: 'Invalid credentials' });
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password are required' });
+    }
+
+    const user: any = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+
+    if (!user || !bcrypt.compareSync(password, user.password)) {
+      return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
+    return res.status(200).json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
+  } catch (err: any) {
+    console.error('Login error:', err);
+    return res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
-
-  const token = jwt.sign({ id: user.id, email: user.email, role: user.role, name: user.name }, JWT_SECRET, { expiresIn: '24h' });
-  res.json({ token, user: { id: user.id, email: user.email, role: user.role, name: user.name } });
 });
 
 app.post('/api/auth/customer-login', (req, res) => {
-  const { name, phone } = req.body;
-  
-  if (!name || !phone) {
-    return res.status(400).json({ error: 'Customer name and phone number are required' });
+  try {
+    const { name, phone } = req.body;
+
+    if (!name || !phone) {
+      return res.status(400).json({ error: 'Customer name and phone number are required' });
+    }
+
+    const project = db.prepare('SELECT * FROM projects WHERE customer_name = ? AND phone = ?').get(name, phone);
+
+    if (!project) {
+      return res.status(404).json({ error: 'No project found with these details. Please contact your administrator.' });
+    }
+
+    const token = jwt.sign({
+      id: `cust_${phone}`,
+      name,
+      phone,
+      role: 'customer'
+    }, JWT_SECRET, { expiresIn: '24h' });
+
+    return res.status(200).json({
+      token,
+      user: {
+        id: `cust_${phone}`,
+        name,
+        phone,
+        role: 'customer'
+      }
+    });
+  } catch (err: any) {
+    console.error('Customer login error:', err);
+    return res.status(500).json({ error: 'Authentication failed. Please try again.' });
   }
-
-  const project = db.prepare('SELECT * FROM projects WHERE customer_name = ? AND phone = ?').get(name, phone);
-
-  if (!project) {
-    return res.status(404).json({ error: 'No project found with these details. Please contact your administrator.' });
-  }
-
-  const token = jwt.sign({ 
-    id: `cust_${phone}`, 
-    name, 
-    phone, 
-    role: 'customer' 
-  }, JWT_SECRET, { expiresIn: '24h' });
-
-  res.json({ 
-    token, 
-    user: { 
-      id: `cust_${phone}`, 
-      name, 
-      phone, 
-      role: 'customer' 
-    } 
-  });
 });
 
 // User routes (Admin Only)
@@ -172,23 +197,32 @@ app.post('/api/users', authenticateToken, isAdmin, (req, res) => {
 
 // Project routes
 app.get('/api/projects', authenticateToken, (req: any, res) => {
-  if (req.user.role === 'admin') {
-    const projects = db.prepare(`
-      SELECT p.*, GROUP_CONCAT(u.name) as assigned_customers
-      FROM projects p
-      LEFT JOIN user_projects up ON p.id = up.project_id
-      LEFT JOIN users u ON up.user_id = u.id
-      GROUP BY p.id
-    `).all();
-    res.json(projects);
-  } else {
-    // Return projects matching customer name and phone
-    const projects = db.prepare(`
-      SELECT *
-      FROM projects
-      WHERE customer_name = ? AND phone = ?
-    `).all(req.user.name, req.user.phone);
-    res.json(projects);
+  try {
+    console.log('Getting projects for user:', req.user);
+
+    if (req.user.role === 'admin') {
+      const projects = db.prepare(`
+        SELECT p.*, GROUP_CONCAT(u.name) as assigned_customers
+        FROM projects p
+        LEFT JOIN user_projects up ON p.id = up.project_id
+        LEFT JOIN users u ON up.user_id = u.id
+        GROUP BY p.id
+      `).all();
+      return res.json(projects);
+    } else {
+      // Return projects matching customer name and phone
+      console.log(`Fetching projects for customer: name=${req.user.name}, phone=${req.user.phone}`);
+      const projects = db.prepare(`
+        SELECT *
+        FROM projects
+        WHERE customer_name = ? AND phone = ?
+      `).all(req.user.name, req.user.phone);
+      console.log(`Found ${projects?.length || 0} projects`);
+      return res.json(projects || []);
+    }
+  } catch (err: any) {
+    console.error('Projects endpoint error:', err);
+    return res.status(500).json({ error: err.message || 'Failed to fetch projects' });
   }
 });
 
