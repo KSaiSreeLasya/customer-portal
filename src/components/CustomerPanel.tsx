@@ -3,10 +3,9 @@ import { motion } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
 import { Project, User } from '../types';
 import { SOLAR_STAGES } from '../constants';
-import { supabase } from '../lib/supabase';
 import { StatusPipeline } from './StatusPipeline';
 
-export default function CustomerPanel({ user }: { user: User }) {
+export default function CustomerPanel({ user, token }: { user: User; token: string }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,18 +20,23 @@ export default function CustomerPanel({ user }: { user: User }) {
 
   const fetchProjects = async () => {
     try {
-      const { data, error: sbError } = await supabase
-        .from('projects')
-        .select('*')
-        .eq('customer_name', user.name)
-        .eq('phone', user.phone);
-      
-      if (sbError) throw sbError;
+      const res = await fetch('/api/projects', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch projects: ${res.statusText}`);
+      }
+
+      const data = await res.json();
       setProjects(data || []);
       setError(null);
     } catch (err: any) {
       console.error('Customer fetch error:', err);
-      setError(err.message || 'Failed to fetch projects from Supabase');
+      setError(err.message || 'Failed to fetch projects');
     } finally {
       setLoading(false);
     }
