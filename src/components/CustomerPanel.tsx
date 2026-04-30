@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
 import { Project, User } from '../types';
 import { SOLAR_STAGES } from '../constants';
@@ -11,13 +11,36 @@ export default function CustomerPanel({ user }: { user: User }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState<'Dashboard' | 'Analytics'>('Dashboard');
+
   // Filter states
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
 
   useEffect(() => {
     fetchProjects();
-  }, []);
+
+    // Set up real-time subscription
+    const channel = supabase
+      .channel('projects_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'projects',
+          filter: `customer_name=eq.${user.name}`
+        },
+        () => {
+          fetchProjects();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.name, user.phone]);
 
   const fetchProjects = async () => {
     try {
@@ -57,6 +80,21 @@ export default function CustomerPanel({ user }: { user: User }) {
           <h1 className="text-6xl font-display font-bold tracking-tighter leading-none mb-4">Project Pipeline</h1>
           <p className="text-[#616161] font-medium max-w-xl">Real-time vector tracking of your registered residential solar system deployments.</p>
         </div>
+
+        <div className="flex p-1.5 bg-white rounded-2xl border border-line-muted shadow-sm self-start md:self-auto">
+          <button 
+            onClick={() => setActiveTab('Dashboard')}
+            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'Dashboard' ? 'bg-brand-primary text-white shadow-lg' : 'text-[#9E9E9E] hover:text-brand-primary'}`}
+          >
+            Dashboard
+          </button>
+          <button 
+            onClick={() => setActiveTab('Analytics')}
+            className={`px-6 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all duration-300 ${activeTab === 'Analytics' ? 'bg-brand-primary text-white shadow-lg' : 'text-[#9E9E9E] hover:text-brand-primary'}`}
+          >
+            Analytics
+          </button>
+        </div>
       </header>
 
       {/* Error Message */}
@@ -67,54 +105,117 @@ export default function CustomerPanel({ user }: { user: User }) {
         </div>
       )}
 
-      {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-2 rounded-[24px] border border-line-muted shadow-sm">
-        <div className="relative flex-1 w-full">
-          <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-primary/20" size={20} />
-          <input
-            type="text"
-            placeholder="Search operational index..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-14 pr-6 py-4 bg-transparent border-none rounded-2xl focus:ring-0 transition-all text-sm font-bold placeholder:text-[#9E9E9E] outline-none"
-          />
-        </div>
-        <div className="flex items-center gap-2 group p-2 pr-4 bg-surface-bg rounded-2xl border border-line-muted">
-          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-brand-primary/40 border border-line-muted">
-            <Filter size={18} />
-          </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="bg-transparent border-none rounded-xl py-2 text-xs font-black uppercase tracking-widest focus:ring-0 transition-all cursor-pointer outline-none"
+      <AnimatePresence mode="wait">
+        {activeTab === 'Dashboard' ? (
+          <motion.div
+            key="dashboard"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className="space-y-12"
           >
-            <option value="All">All Phases</option>
-            {SOLAR_STAGES.map(stage => (
-              <option key={stage} value={stage}>{stage}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+            {/* Filter Bar */}
+            <div className="flex flex-col md:flex-row gap-4 items-center bg-white p-2 rounded-[24px] border border-line-muted shadow-sm">
+              <div className="relative flex-1 w-full">
+                <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-brand-primary/20" size={20} />
+                <input
+                  type="text"
+                  placeholder="Search operational index..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-14 pr-6 py-4 bg-transparent border-none rounded-2xl focus:ring-0 transition-all text-sm font-bold placeholder:text-[#9E9E9E] outline-none"
+                />
+              </div>
+              <div className="flex items-center gap-2 group p-2 pr-4 bg-surface-bg rounded-2xl border border-line-muted">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-brand-primary/40 border border-line-muted">
+                  <Filter size={18} />
+                </div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="bg-transparent border-none rounded-xl py-2 text-xs font-black uppercase tracking-widest focus:ring-0 transition-all cursor-pointer outline-none"
+                >
+                  <option value="All">All Phases</option>
+                  {SOLAR_STAGES.map(stage => (
+                    <option key={stage} value={stage}>{stage}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
 
-      {filteredProjects.length === 0 ? (
-        <div className="bg-white rounded-[40px] border border-line-muted p-32 text-center shadow-sm">
-          <div className="w-20 h-20 bg-surface-bg rounded-3xl flex items-center justify-center text-brand-primary/10 mx-auto mb-8">
-            <FolderKanban size={40} />
-          </div>
-          <h2 className="text-2xl font-display font-bold tracking-tight mb-2">No Active Streams</h2>
-          <p className="text-[#9E9E9E] font-medium">
-            {projects.length === 0 
-              ? "Awaiting regional synchronization for your node credentials."
-              : "No telemetry data matches your current search criteria."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-12">
-          {filteredProjects.map((project, idx) => (
-            <ProjectCard key={project.id} project={project} index={idx} />
-          ))}
-        </div>
-      )}
+            {filteredProjects.length === 0 ? (
+              <div className="bg-white rounded-[40px] border border-line-muted p-32 text-center shadow-sm">
+                <div className="w-20 h-20 bg-surface-bg rounded-3xl flex items-center justify-center text-brand-primary/10 mx-auto mb-8">
+                  <FolderKanban size={40} />
+                </div>
+                <h2 className="text-2xl font-display font-bold tracking-tight mb-2">No Active Streams</h2>
+                <p className="text-[#9E9E9E] font-medium">
+                  {projects.length === 0 
+                    ? "Awaiting regional synchronization for your node credentials."
+                    : "No telemetry data matches your current search criteria."}
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-12">
+                {filteredProjects.map((project, idx) => (
+                  <ProjectCard key={project.id} project={project} index={idx} />
+                ))}
+              </div>
+            )}
+          </motion.div>
+        ) : (
+          <motion.div
+            key="analytics"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 1.05 }}
+            className="bg-white rounded-[40px] p-24 border border-line-muted shadow-2xl relative overflow-hidden flex flex-col items-center justify-center text-center min-h-[600px]"
+          >
+            {/* Background Accents */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-brand-accent/20 blur-[100px] -mr-48 -mt-48 rounded-full" />
+            <div className="absolute bottom-0 left-0 w-64 h-64 bg-brand-primary/5 blur-[80px] -ml-32 -mb-32 rounded-full" />
+            
+            <motion.div
+              animate={{ 
+                rotate: [0, 5, -5, 0],
+                y: [0, -10, 0]
+              }}
+              transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }}
+              className="w-24 h-24 rounded-[32px] bg-surface-bg border border-line-muted flex items-center justify-center text-brand-primary mb-10 relative z-10"
+            >
+              <div className="w-12 h-12 rounded-full border-4 border-t-brand-accent-dark border-r-transparent border-b-transparent border-l-transparent animate-spin absolute" />
+              <Search size={32} className="text-brand-primary/20" />
+            </motion.div>
+
+            <h2 className="text-7xl font-display font-bold tracking-tighter text-brand-primary mb-6 relative z-10">
+              COMING <span className="text-brand-accent serif italic">SOON</span>
+            </h2>
+            
+            <div className="max-w-md relative z-10 space-y-8">
+              <p className="text-xl font-bold text-[#616161] leading-relaxed">
+                Our spectral yield analysis engine is currently synthesizing regional solar radiation vector data.
+              </p>
+              <div className="flex gap-3 justify-center">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="h-1.5 w-12 bg-surface-bg border border-line-muted rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ x: "-100%" }}
+                      animate={{ x: "100%" }}
+                      transition={{ duration: 2, repeat: Infinity, delay: i * 0.3 }}
+                      className="h-full w-full bg-brand-accent-dark shadow-[0_0_8px_rgba(255,193,7,0.5)]"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="pt-4 p-8 border border-line-muted rounded-[32px] bg-surface-bg inline-block">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-brand-primary leading-none">
+                  Predictive Maintenance & ROI Module
+                </p>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

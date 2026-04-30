@@ -143,6 +143,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
   const updateProjectStatus = async (id: string, status: string) => {
     try {
+      const oldProject = projects.find(p => p.id === id);
       const progress = STAGE_PROGRESS[status as keyof typeof STAGE_PROGRESS] || 0;
       
       // Update locally immediately for best DX
@@ -151,12 +152,21 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
         setSelectedProject(prev => prev ? { ...prev, status: status as any, progress, updated_at: new Date().toISOString() } : null);
       }
 
+      // 1. Update Project Status
       const { error: sbError } = await supabase
         .from('projects')
         .update({ status, progress, updated_at: new Date().toISOString() })
         .eq('id', id);
 
       if (sbError) throw sbError;
+
+      // 2. Log the change
+      await supabase.from('status_logs').insert([{
+        project_id: id,
+        old_status: oldProject?.status,
+        new_status: status,
+        updated_by: 'Admin'
+      }]);
       
       // Still fetch to sync with DB
       fetchData();
@@ -576,10 +586,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
 
                 <div className="space-y-4">
                    <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-1">Infrastructure Timeline</h3>
-                   <div className="space-y-3">
-                      <TimelineItem label="Initialization" date={selectedProject.created_at} icon={<Clock size={14}/>} />
-                      <TimelineItem label="Latest Sync" date={selectedProject.updated_at} icon={<ArrowUpRight size={14}/>} />
-                   </div>
+                   <ProjectHistory project={selectedProject} />
                 </div>
 
                 <div className="p-6 border border-line-muted rounded-3xl bg-surface-bg flex items-center justify-between">
@@ -594,6 +601,58 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           </motion.div>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProjectHistory({ project }: { project: any }) {
+  const [logs, setLogs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      const { data } = await supabase
+        .from('status_logs')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('updated_at', { ascending: false });
+      setLogs(data || []);
+      setLoading(false);
+    };
+    fetchLogs();
+  }, [project.id, project.status]);
+
+  if (loading) return <div className="p-4 flex justify-center"><Loader2 className="animate-spin text-brand-primary/20" size={20} /></div>;
+
+  return (
+    <div className="space-y-3 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+      {logs.length === 0 ? (
+        <div className="p-4 bg-surface-bg rounded-2xl border border-line-muted text-center italic text-[#9E9E9E] text-[10px] font-bold uppercase tracking-widest">
+          No records captured for this node.
+        </div>
+      ) : (
+        logs.map((log) => (
+          <div key={log.id} className="flex items-center justify-between p-4 bg-white rounded-2xl border border-line-muted shadow-sm group">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-surface-bg flex items-center justify-center text-[#9E9E9E] group-hover:bg-brand-accent transition-colors">
+                <ArrowUpRight size={14}/>
+              </div>
+              <div>
+                <p className="text-[10px] font-black uppercase tracking-widest text-brand-primary leading-none mb-1">
+                  {log.new_status}
+                </p>
+                <p className="text-[8px] font-bold text-[#9E9E9E] uppercase tracking-tighter">
+                  Prev: {log.old_status || 'INIT'}
+                </p>
+              </div>
+            </div>
+            <span className="text-[9px] font-mono font-bold text-[#616161]">
+              {new Date(log.updated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          </div>
+        ))
+      )}
+      <TimelineItem label="Initialization" date={project.created_at} icon={<Clock size={14}/>} />
     </div>
   );
 }

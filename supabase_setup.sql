@@ -42,3 +42,18 @@ ON CONFLICT (email) DO NOTHING;
 INSERT INTO projects (name, description, customer_name, phone, proposal_amount, status, progress)
 VALUES ('Demo Sol-1', 'Residential rooftop installation.', 'John Doe', '9876543210', 550000, 'Installation', 80)
 ON CONFLICT DO NOTHING;
+
+-- 5. Create Status Logs table
+CREATE TABLE IF NOT EXISTS status_logs (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  project_id uuid REFERENCES projects(id) ON DELETE CASCADE,
+  old_status text,
+  new_status text,
+  updated_by text,
+  updated_at timestamp with time zone DEFAULT now()
+);
+
+-- Enable RLS for status_logs
+ALTER TABLE status_logs ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Public Read Access Logs" ON status_logs FOR SELECT USING (true);
+CREATE POLICY "Public Write Access Logs" ON status_logs FOR ALL USING (true);
