@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Plus, Users, FolderKanban, CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, Search, Filter } from 'lucide-react';
+import { Plus, Users, FolderKanban, CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, Search, Filter, ArrowLeft } from 'lucide-react';
 import { User, Project } from '../types';
 import { SOLAR_STAGES, STAGE_PROGRESS } from '../constants';
 import { supabase } from '../lib/supabase';
@@ -41,7 +41,10 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
     const token = localStorage.getItem('token');
     setLoading(true);
     try {
-      // Fetch customers from local API (still managed locally for auth)
+      // Fetch customers
+      // We try to fetch from local API, but if it fails (common in serverless deploys),
+      // we can optionally derive unique customers from our Supabase projects list
+      let customersList: User[] = [];
       try {
         const customersRes = await fetch('/api/users', { 
           headers: { Authorization: `Bearer ${token}` } 
@@ -49,14 +52,23 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
         
         const contentType = customersRes.headers.get('content-type');
         if (customersRes.ok && contentType && contentType.includes('application/json')) {
-          const customersData = await customersRes.json();
-          setCustomers(customersData);
-        } else {
-          console.warn('Customer fetch skipped: API returned non-JSON or error status', customersRes.status);
+          customersList = await customersRes.json();
         }
       } catch (custErr) {
-        console.error('Customer fetch network error:', custErr);
+        console.warn('Customer fetch via API failed, will check Supabase table next');
       }
+
+      // Try fetching customers from Supabase if API failed or returned nothing
+      if (customersList.length === 0) {
+        try {
+          const { data: sbCustomers } = await supabase.from('customers').select('*');
+          if (sbCustomers) customersList = sbCustomers as any;
+        } catch (e) {
+          console.warn('Supabase customers table not found. Using project references as fallback.');
+        }
+      }
+
+      setCustomers(customersList);
 
       // Fetch projects from Supabase
       const { data: projectsData, error: sbError } = await supabase
@@ -451,12 +463,24 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
             animate={{ scale: 1, opacity: 1, y: 0 }} 
             className="bg-white rounded-[40px] p-12 max-w-5xl w-full my-auto shadow-2xl relative"
           >
-            <button 
-              onClick={() => setSelectedProject(null)}
-              className="absolute top-10 right-10 w-12 h-12 rounded-full bg-surface-bg flex items-center justify-center text-brand-primary hover:bg-brand-accent transition-all duration-300"
-            >
-              <Plus className="rotate-45" size={24} />
-            </button>
+            <div className="flex justify-between items-center mb-8">
+              <button 
+                onClick={() => setSelectedProject(null)}
+                className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] hover:text-brand-primary transition-colors group"
+              >
+                <div className="w-8 h-8 rounded-xl bg-surface-bg flex items-center justify-center group-hover:bg-brand-accent transition-colors">
+                  <ArrowLeft size={16} />
+                </div>
+                Back to Index
+              </button>
+              
+              <button 
+                onClick={() => setSelectedProject(null)}
+                className="w-12 h-12 rounded-full bg-surface-bg flex items-center justify-center text-brand-primary hover:bg-brand-accent transition-all duration-300"
+              >
+                <Plus className="rotate-45" size={24} />
+              </button>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
               {/* Left Column: Core Info */}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogOut, LayoutDashboard, Users, FolderKanban, ChevronRight, Plus, CheckCircle2, Clock, PlayCircle, Loader2 } from 'lucide-react';
+import { LogOut, LayoutDashboard, Users, FolderKanban, ChevronRight, Plus, CheckCircle2, Clock, PlayCircle, Loader2, ArrowLeft } from 'lucide-react';
 import { User, Project } from './types';
 
 // Components
@@ -152,6 +152,22 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
               exit={{ opacity: 0, scale: 1.02, y: -10 }}
               transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
             >
+              {activeTab !== 'Overview' && (
+                <motion.button
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  onClick={() => {
+                    setActiveTab('Overview');
+                    navigate('/');
+                  }}
+                  className="mb-8 flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-brand-primary/40 hover:text-brand-primary transition-colors group"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-white border border-line-muted flex items-center justify-center group-hover:border-brand-primary transition-colors">
+                    <ArrowLeft size={14} />
+                  </div>
+                  Return to Matrix
+                </motion.button>
+              )}
               {children}
             </motion.div>
           </AnimatePresence>

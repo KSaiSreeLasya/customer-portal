@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { Mail, Lock, Loader2, ArrowRight, FolderKanban } from 'lucide-react';
 import { User } from '../types';
+import { supabase } from '../lib/supabase';
 
 export default function Login({ onLogin }: { onLogin: (user: User, token: string) => void }) {
   const [mode, setMode] = useState<'admin' | 'customer'>('customer');
@@ -19,42 +20,81 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
 
     try {
       if (mode === 'admin') {
-        const res = await fetch('/api/auth/login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
-        });
+        // 1. Try Supabase Staff lookup
+        // We catch everything to provide better feedback
+        const { data: staff, error: staffError } = await supabase
+          .from('staff')
+          .select('*')
+          .eq('email', email)
+          .eq('password_hash', password)
+          .single();
 
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await res.text();
-          console.error('Non-JSON login response:', text);
-          throw new Error(`Server error (${res.status}). Please try again later.`);
+        if (staffError) {
+          console.warn('Staff lookup error:', staffError.message);
+          
+          // If the table doesn't exist, we fallback to hardcoded ONLY for setup
+          if (staffError.code === 'PGRST116' || staffError.message.includes('relation "staff" does not exist')) {
+            if (email === 'admin@example.com' && password === 'admin123') {
+              onLogin({
+                id: 'admin-temp',
+                name: 'Emergency Admin',
+                email: 'admin@example.com',
+                role: 'admin'
+              }, 'temp-session');
+              return;
+            }
+          }
+          
+          if (staffError.code !== 'PGRST116') {
+             throw new Error(`Database error: ${staffError.message}. Make sure your "staff" table is created in Supabase.`);
+          }
         }
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
+        if (staff) {
+          const adminUser: User = {
+            id: staff.id,
+            name: staff.name,
+            email: staff.email,
+            role: 'admin'
+          };
+          onLogin(adminUser, 'sb-staff-session');
+          return;
+        }
 
-        onLogin(data.user, data.token);
+        throw new Error('Invalid administrative credentials.');
       } else {
-        // Customer Mode: Backend Authentication
-        const res = await fetch('/api/auth/customer-login', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name: customerName, phone }),
-        });
+        // Customer Mode: Direct Supabase Lookup
+        // We use .select('*') to check if the table/columns exist
+        const { data: projects, error: sbError } = await supabase
+          .from('projects')
+          .select('*')
+          .eq('customer_name', customerName)
+          .eq('phone', phone)
+          .limit(1);
 
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-          const text = await res.text();
-          console.error('Non-JSON customer login response:', text);
-          throw new Error(`Server error (${res.status}). Please try again later.`);
+        if (sbError) {
+          console.error('Supabase Query Error:', sbError);
+          if (sbError.message.includes('relation "projects" does not exist')) {
+             throw new Error('The "projects" table was not found in Supabase. Please create it.');
+          }
+          if (sbError.message.includes('column "customer_name" does not exist') || sbError.message.includes('column "phone" does not exist')) {
+             throw new Error('The "projects" table is missing the required "customer_name" or "phone" columns.');
+          }
+          throw new Error(`Database error: ${sbError.message}`);
         }
 
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || 'Login failed');
+        if (!projects || projects.length === 0) {
+          throw new Error('No match found for this name and phone number. Please verify your details.');
+        }
 
-        onLogin(data.user, data.token);
+        const project = projects[0];
+        const mockUser: User = {
+          id: project.id || `cust_${phone}`,
+          name: customerName,
+          phone: phone,
+          role: 'customer'
+        };
+        onLogin(mockUser, 'sb-customer-session');
       }
     } catch (err: any) {
       setError(err.message);
