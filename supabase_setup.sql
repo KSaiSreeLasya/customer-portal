@@ -14,6 +14,20 @@ CREATE TABLE IF NOT EXISTS projects (
   updated_at timestamp with time zone DEFAULT now()
 );
 
+-- Ensure missing columns exist if table was created manually
+DO $$ 
+BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='progress') THEN
+        ALTER TABLE projects ADD COLUMN progress integer DEFAULT 10;
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='updated_at') THEN
+        ALTER TABLE projects ADD COLUMN updated_at timestamp with time zone DEFAULT now();
+    END IF;
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='description') THEN
+        ALTER TABLE projects ADD COLUMN description text;
+    END IF;
+END $$;
+
 -- 2. Create Staff/Admin Table (for administrative login)
 CREATE TABLE IF NOT EXISTS staff (
   id uuid DEFAULT gen_random_uuid() PRIMARY KEY,

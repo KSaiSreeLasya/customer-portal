@@ -76,7 +76,22 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
         .select('*');
       
       if (sbError) throw sbError;
-      setProjects(projectsData || []);
+      
+      // Calculate progress locally based on status to avoid DB field errors
+      const processedProjects = (projectsData || []).map(p => {
+        // Robust mapping
+        const status = (p.status || 'Site Visit').trim();
+        const progress = STAGE_PROGRESS[status as keyof typeof STAGE_PROGRESS] || 
+                        STAGE_PROGRESS['Site Visit']; // Default to 10 if unknown
+        
+        return {
+          ...p,
+          status,
+          progress
+        };
+      });
+
+      setProjects(processedProjects);
       setError(null);
     } catch (err: any) {
       console.error('Fetch error:', err);
@@ -92,7 +107,8 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       const initialStatus = 'Site Visit';
       const progress = STAGE_PROGRESS[initialStatus];
 
-      const { data, error: sbError } = await supabase
+      // Insert into projects
+      const { data: newProject, error: sbError } = await supabase
         .from('projects')
         .insert([{ 
           name: projectName, 
@@ -103,12 +119,22 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
           paid_amount: paidAmount ? parseFloat(paidAmount) : 0,
           advance_amount: advanceAmount ? parseFloat(advanceAmount) : 0,
           balance_amount: (proposalAmount ? parseFloat(proposalAmount) : 0) - (advanceAmount ? parseFloat(advanceAmount) : 0) - (paidAmount ? parseFloat(paidAmount) : 0),
-          status: initialStatus,
-          progress: progress
+          status: initialStatus
+          // Removed progress to avoid schema cache errors
         }])
         .select();
 
       if (sbError) throw sbError;
+
+      // Log the initialization
+      if (newProject && newProject[0]) {
+        await supabase.from('status_logs').insert([{
+           project_id: newProject[0].id,
+           new_status: initialStatus,
+           updated_by: 'Admin',
+           updated_at: new Date().toISOString()
+        }]);
+      }
 
       setShowAddProject(false);
       setProjectName('');
@@ -153,26 +179,46 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       }
 
       // 1. Update Project Status
+      const timestamp = new Date().toISOString();
+      
       const { error: sbError } = await supabase
         .from('projects')
-        .update({ status, progress, updated_at: new Date().toISOString() })
+        .update({ 
+          status, 
+          updated_at: timestamp 
+        })
         .eq('id', id);
 
-      if (sbError) throw sbError;
+      if (sbError) {
+        console.error('Update failed:', sbError);
+        // Fallback: Just status
+        const { error: retryError } = await supabase
+          .from('projects')
+          .update({ status })
+          .eq('id', id);
+        
+        if (retryError) throw retryError;
+      }
 
-      // 2. Log the change
-      await supabase.from('status_logs').insert([{
-        project_id: id,
-        old_status: oldProject?.status,
-        new_status: status,
-        updated_by: 'Admin'
-      }]);
+      // 2. Log the change for History and "Last Updated" tracking
+      // We wrap this in a try-catch to not block the main update if logging fails
+      try {
+        await supabase.from('status_logs').insert([{
+          project_id: id,
+          old_status: oldProject?.status,
+          new_status: status,
+          updated_by: 'Admin',
+          updated_at: timestamp
+        }]);
+      } catch (logErr) {
+        console.warn('Logging failed:', logErr);
+      }
       
       // Still fetch to sync with DB
-      fetchData();
+      await fetchData();
     } catch (err: any) {
       console.error('Update status error:', err);
-      setError(err.message);
+      setError(`Persistence failure: ${err.message}`);
       // Revert on error
       fetchData();
     }
@@ -197,25 +243,25 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
             <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E9E9E]">Operations Control</p>
           </div>
-          <h1 className="text-6xl font-display font-bold tracking-tighter leading-none mb-4">
+          <h1 className="text-4xl lg:text-6xl font-display font-bold tracking-tighter leading-none mb-4">
             {activeTab === 'Overview' ? 'System Overview' : activeTab}
           </h1>
-          <p className="text-[#616161] font-medium max-w-xl">
+          <p className="text-sm lg:text-base text-[#616161] font-medium max-w-xl">
             {activeTab === 'Overview' && 'Comprehensive tracking of residential solar deployments and multi-stage subsidy orchestrations.'}
             {activeTab === 'Customers' && 'Identity management and directory services for the solar infrastructure network.'}
             {activeTab === 'Installations' && 'Precision logging for localized specialized solar installation pipelines.'}
           </p>
         </div>
-        <div className="flex flex-wrap gap-3">
+        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
           <button 
             onClick={() => setShowAddCustomer(true)}
-            className="px-6 py-4 bg-white border border-line-muted rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-surface-bg transition-all flex items-center gap-2 active:scale-95"
+            className="flex-1 lg:flex-none px-6 py-4 bg-white border border-line-muted rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-surface-bg transition-all flex items-center justify-center gap-2 active:scale-95"
           >
             <Users size={16} className="text-[#9E9E9E]" /> Provision User
           </button>
           <button 
             onClick={() => setShowAddProject(true)}
-            className="px-6 py-4 bg-brand-primary text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-xl shadow-black/10 active:scale-95"
+            className="flex-1 lg:flex-none px-6 py-4 bg-brand-primary text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-black transition-all flex items-center justify-center gap-2 shadow-xl shadow-black/10 active:scale-95"
           >
             <Plus size={16} className="text-brand-accent" /> Initialize Project
           </button>
@@ -223,7 +269,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       </header>
 
       {activeTab === 'Overview' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           <StatCard label="Network Reach" value={projects.length} subtext="Active Nodes" icon={<FolderKanban />} />
           <StatCard label="Identity Count" value={customers.length} subtext="Registered Entities" icon={<Users />} />
           <StatCard label="Finalized Pipeline" value={projects.filter(p => p.status === 'Subsidy').length} subtext="Subsidy Resolved" icon={<CheckCircle2 />} />
@@ -268,9 +314,9 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
             </div>
           </div>
 
-          {/* Projects Table */}
+          {/* Projects Table & Mobile Cards */}
           <div className="bg-white rounded-[32px] border border-line-muted shadow-sm overflow-hidden">
-            <div className="px-10 py-8 border-b border-line-muted flex justify-between items-center bg-white">
+            <div className="px-6 lg:px-10 py-8 border-b border-line-muted flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white">
               <div className="flex items-center gap-4">
                 <div className="w-3 h-3 rounded-full bg-brand-accent shadow-[0_0_8px_rgba(255,212,59,0.5)]" />
                 <h2 className="font-display font-bold text-2xl tracking-tight text-brand-primary">Project Register</h2>
@@ -282,13 +328,15 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                 </span>
               </div>
             </div>
-            <div className="overflow-x-auto">
+
+            {/* Desktop View */}
+            <div className="hidden lg:block overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-surface-bg/50 border-b border-line-muted">
                     <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Designation</th>
                     <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Assigned Lead</th>
-                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Contact Vector</th>
+                    <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Technical Sync</th>
                     <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Pipeline Status</th>
                     <th className="px-10 py-5 text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] text-right">Completion</th>
                   </tr>
@@ -315,8 +363,8 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                           <span className="text-sm font-bold text-brand-primary opacity-80 italic serif">{p.customer_name || 'Unassigned'}</span>
                         </div>
                       </td>
-                      <td className="px-10 py-6 font-mono text-xs font-bold text-[#616161]">
-                        {p.phone || '-- -- --'}
+                      <td className="px-10 py-6 font-mono text-[9px] font-bold text-[#616161] uppercase">
+                        {p.updated_at ? new Date(p.updated_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'INIT'}
                       </td>
                       <td className="px-10 py-6">
                         <StatusBadge status={p.status} />
@@ -338,24 +386,56 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                       </td>
                     </tr>
                   ))}
-                  {filteredProjects.length === 0 && (
-                    <tr>
-                      <td colSpan={5} className="px-10 py-32 text-center">
-                        <div className="flex flex-col items-center gap-4">
-                          <div className="w-16 h-16 bg-surface-bg rounded-3xl flex items-center justify-center text-brand-primary/10">
-                            <FolderKanban size={32} />
-                          </div>
-                          <div>
-                            <p className="text-sm font-bold text-brand-primary">Null Result Cluster</p>
-                            <p className="text-xs font-bold text-[#9E9E9E] uppercase tracking-widest mt-1">No matches found for active query</p>
-                          </div>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
             </div>
+
+            {/* Mobile View */}
+            <div className="lg:hidden divide-y divide-line-muted">
+              {filteredProjects.map((p) => (
+                <div key={p.id} className="p-6 space-y-4 active:bg-surface-bg transition-colors" onClick={() => setSelectedProject(p)}>
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h3 className="font-bold text-brand-primary">{p.name}</h3>
+                      <p className="text-[10px] font-mono font-bold text-[#9E9E9E] uppercase tracking-tighter">REF-SOLAR-{p.id.toString().slice(0, 8)}</p>
+                    </div>
+                    <StatusBadge status={p.status} />
+                  </div>
+                  <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest">
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-full bg-brand-primary text-brand-accent text-[8px] flex items-center justify-center italic serif">
+                        {(p.customer_name || 'U').charAt(0)}
+                      </div>
+                      <span className="text-[#616161]">{p.customer_name || 'Unassigned'}</span>
+                    </div>
+                    <div className="text-brand-primary/40 font-mono">
+                      {p.progress}% COMPLETED
+                    </div>
+                  </div>
+                  <div className="w-full h-1 bg-surface-bg rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      animate={{ width: `${p.progress}%` }}
+                      className="h-full bg-brand-primary" 
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredProjects.length === 0 && (
+              <div className="px-10 py-32 text-center">
+                <div className="flex flex-col items-center gap-4">
+                  <div className="w-16 h-16 bg-surface-bg rounded-3xl flex items-center justify-center text-brand-primary/10">
+                    <FolderKanban size={32} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-brand-primary">Null Result Cluster</p>
+                    <p className="text-xs font-bold text-[#9E9E9E] uppercase tracking-widest mt-1">No matches found for active query</p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -467,11 +547,11 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
       )}
 
       {selectedProject && (
-        <div className="fixed inset-0 bg-brand-primary/95 backdrop-blur-md z-50 flex items-center justify-center p-6 overflow-y-auto">
+        <div className="fixed inset-0 bg-brand-primary/95 backdrop-blur-md z-50 flex items-center justify-center p-0 lg:p-6 overflow-y-auto">
           <motion.div 
             initial={{ scale: 0.95, opacity: 0, y: 20 }} 
             animate={{ scale: 1, opacity: 1, y: 0 }} 
-            className="bg-white rounded-[40px] p-12 max-w-5xl w-full my-auto shadow-2xl relative"
+            className="bg-white rounded-none lg:rounded-[40px] p-6 lg:p-12 w-full max-w-5xl min-h-screen lg:min-h-0 lg:my-auto shadow-2xl relative"
           >
             <div className="flex justify-between items-center mb-8">
               <button 
@@ -481,34 +561,40 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                 <div className="w-8 h-8 rounded-xl bg-surface-bg flex items-center justify-center group-hover:bg-brand-accent transition-colors">
                   <ArrowLeft size={16} />
                 </div>
-                Back to Index
+                <span className="hidden sm:inline">Back to Index</span>
               </button>
               
               <button 
                 onClick={() => setSelectedProject(null)}
-                className="w-12 h-12 rounded-full bg-surface-bg flex items-center justify-center text-brand-primary hover:bg-brand-accent transition-all duration-300"
+                className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-surface-bg flex items-center justify-center text-brand-primary hover:bg-brand-accent transition-all duration-300"
               >
                 <Plus className="rotate-45" size={24} />
               </button>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12">
               {/* Left Column: Core Info */}
-              <div className="lg:col-span-7 space-y-10">
+              <div className="lg:col-span-7 space-y-8 lg:space-y-10">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-3">
+                  <div className="flex flex-wrap items-center gap-3">
                     <StatusBadge status={selectedProject.status} />
-                    <span className="text-[10px] font-black font-mono text-[#9E9E9E] bg-surface-bg px-3 py-1 rounded-lg border border-line-muted">SYSTEM_ID: SOL-{selectedProject.id.toString().slice(0, 8)}</span>
+                    <span className="text-[10px] font-black font-mono text-[#9E9E9E] bg-surface-bg px-3 py-1 rounded-lg border border-line-muted uppercase">SYS_REF: {selectedProject.id.toString().slice(0, 8)}</span>
                   </div>
-                  <h2 className="text-6xl font-display font-bold tracking-tighter leading-[0.9]">{selectedProject.name}</h2>
-                  <div className="flex gap-10 pt-4">
+                  <h2 className="text-4xl lg:text-6xl font-display font-bold tracking-tighter leading-[0.9] text-brand-primary">{selectedProject.name}</h2>
+                  <div className="flex flex-wrap gap-6 lg:gap-10 pt-4">
                     <div>
-                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Primary Stakeholder</p>
-                      <p className="font-bold text-lg italic serif">{selectedProject.customer_name || 'Unassigned Node'}</p>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Stakeholder</p>
+                      <p className="font-bold text-base lg:text-lg italic serif">{selectedProject.customer_name || 'Unassigned Node'}</p>
                     </div>
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Secure Line</p>
-                      <p className="font-mono font-bold text-lg">{selectedProject.phone || 'NO_VECTOR'}</p>
+                      <p className="font-mono font-bold text-base lg:text-lg">{selectedProject.phone || 'NO_VECTOR'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-2">Technical Update</p>
+                      <p className="font-mono font-bold text-xs lg:text-sm text-brand-primary/60">
+                        {selectedProject.updated_at ? new Date(selectedProject.updated_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase() : 'NO_SYNC'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -516,7 +602,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                 <div className="space-y-4">
                   <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-1">Project Manifest</h3>
                   <div className="p-6 bg-surface-bg rounded-[24px] border border-line-muted">
-                    <p className="text-lg text-[#424242] leading-relaxed font-medium">
+                    <p className="text-base lg:text-lg text-[#424242] leading-relaxed font-medium">
                       {selectedProject.description || 'System generated: No additional manifest provided for this project ID.'}
                     </p>
                   </div>
@@ -540,15 +626,15 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
               </div>
 
               {/* Right Column: Pipeline & Actions */}
-              <div className="lg:col-span-5 space-y-8">
-                <div className="bg-brand-primary p-8 rounded-[32px] text-white space-y-8 relative overflow-hidden">
+              <div className="lg:col-span-5 space-y-8 pb-12 lg:pb-0">
+                <div className="bg-brand-primary p-6 lg:p-8 rounded-[32px] text-white space-y-8 relative overflow-hidden">
                   <div className="absolute top-0 right-0 w-32 h-32 bg-brand-accent/10 rounded-full blur-3xl" />
                   
                   <div className="flex justify-between items-start relative z-10">
                     <div>
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Pipeline Phase</p>
                       <div className="flex flex-col gap-2">
-                        <span className="text-3xl font-display font-bold tracking-tight">{selectedProject.status}</span>
+                        <span className="text-2xl lg:text-3xl font-display font-bold tracking-tight">{selectedProject.status}</span>
                         <div className="inline-flex">
                           <select 
                             value={selectedProject.status}
@@ -564,7 +650,7 @@ export default function AdminPanel({ activeTab }: { activeTab: string }) {
                     </div>
                     <div className="text-right">
                       <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-2">Sync Status</p>
-                      <p className="text-5xl font-display font-black tracking-tighter text-brand-accent">{selectedProject.progress}%</p>
+                      <p className="text-4xl lg:text-5xl font-display font-black tracking-tighter text-brand-accent">{selectedProject.progress}%</p>
                     </div>
                   </div>
 
@@ -616,7 +702,12 @@ function ProjectHistory({ project }: { project: any }) {
         .select('*')
         .eq('project_id', project.id)
         .order('updated_at', { ascending: false });
-      setLogs(data || []);
+      
+      if (data && data.length > 0) {
+        setLogs(data);
+      } else {
+        setLogs([]);
+      }
       setLoading(false);
     };
     fetchLogs();

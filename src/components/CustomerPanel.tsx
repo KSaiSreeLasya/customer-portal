@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { CheckCircle2, Clock, PlayCircle, Loader2, ArrowUpRight, FolderKanban, Users, Search, Filter } from 'lucide-react';
 import { Project, User } from '../types';
-import { SOLAR_STAGES } from '../constants';
+import { SOLAR_STAGES, STAGE_PROGRESS } from '../constants';
 import { supabase } from '../lib/supabase';
 import { StatusPipeline } from './StatusPipeline';
 
@@ -28,11 +28,16 @@ export default function CustomerPanel({ user }: { user: User }) {
         {
           event: '*',
           schema: 'public',
-          table: 'projects',
-          filter: `customer_name=eq.${user.name}`
+          table: 'projects'
         },
-        () => {
-          fetchProjects();
+        (payload: any) => {
+          // Check if this project belongs to the current user
+          if (payload.new && payload.new.customer_name === user.name && payload.new.phone === user.phone) {
+            fetchProjects();
+          } else if (payload.old && payload.old.customer_name === user.name) {
+             // Handle deletes or re-assignments
+             fetchProjects();
+          }
         }
       )
       .subscribe();
@@ -51,7 +56,20 @@ export default function CustomerPanel({ user }: { user: User }) {
         .eq('phone', user.phone);
       
       if (sbError) throw sbError;
-      setProjects(data || []);
+      
+      // Manually calculate progress to avoid DB column dependency
+      const processedProjects = (data || []).map(p => {
+        const status = (p.status || 'Site Visit').trim();
+        const progress = STAGE_PROGRESS[status as keyof typeof STAGE_PROGRESS] || 
+                        STAGE_PROGRESS['Site Visit'];
+        return {
+          ...p,
+          status,
+          progress
+        };
+      });
+
+      setProjects(processedProjects);
       setError(null);
     } catch (err: any) {
       console.error('Customer fetch error:', err);
@@ -77,8 +95,8 @@ export default function CustomerPanel({ user }: { user: User }) {
             <div className="w-2 h-2 rounded-full bg-brand-accent animate-pulse" />
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#9E9E9E]">Live Telemetry</p>
           </div>
-          <h1 className="text-6xl font-display font-bold tracking-tighter leading-none mb-4">Project Pipeline</h1>
-          <p className="text-[#616161] font-medium max-w-xl">Real-time vector tracking of your registered residential solar system deployments.</p>
+          <h1 className="text-4xl lg:text-6xl font-display font-bold tracking-tighter leading-none mb-4">Project Pipeline</h1>
+          <p className="text-sm lg:text-base text-[#616161] font-medium max-w-xl">Real-time vector tracking of your registered residential solar system deployments.</p>
         </div>
 
         <div className="flex p-1.5 bg-white rounded-2xl border border-line-muted shadow-sm self-start md:self-auto">
@@ -187,12 +205,12 @@ export default function CustomerPanel({ user }: { user: User }) {
               <Search size={32} className="text-brand-primary/20" />
             </motion.div>
 
-            <h2 className="text-7xl font-display font-bold tracking-tighter text-brand-primary mb-6 relative z-10">
+            <h2 className="text-4xl lg:text-7xl font-display font-bold tracking-tighter text-brand-primary mb-6 relative z-10">
               COMING <span className="text-brand-accent serif italic">SOON</span>
             </h2>
             
-            <div className="max-w-md relative z-10 space-y-8">
-              <p className="text-xl font-bold text-[#616161] leading-relaxed">
+            <div className="max-w-md relative z-10 space-y-8 p-4 lg:p-0">
+              <p className="text-base lg:text-xl font-bold text-[#616161] leading-relaxed">
                 Our spectral yield analysis engine is currently synthesizing regional solar radiation vector data.
               </p>
               <div className="flex gap-3 justify-center">
@@ -226,31 +244,31 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: index * 0.1, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      className="bg-white rounded-[48px] border border-line-muted p-12 hover:shadow-2xl hover:shadow-black/5 transition-all duration-700 group relative overflow-hidden"
+      className="bg-white rounded-[32px] lg:rounded-[48px] p-6 lg:p-12 hover:shadow-2xl hover:shadow-black/5 transition-all duration-700 group relative overflow-hidden border border-line-muted"
     >
       <div className="absolute top-0 right-0 w-64 h-64 bg-brand-accent/5 rounded-full blur-[100px] -mr-32 -mt-32 group-hover:scale-150 transition-transform duration-1000" />
       
-      <div className="flex flex-col gap-12 relative z-10">
+      <div className="flex flex-col gap-8 lg:gap-12 relative z-10">
         {/* Header Info */}
-        <div className="flex flex-col lg:flex-row justify-between items-start gap-8 border-b border-line-muted pb-10">
-          <div className="space-y-6 flex-1">
-            <div className="flex items-center gap-3">
+        <div className="flex flex-col lg:flex-row justify-between items-start gap-6 lg:gap-8 border-b border-line-muted pb-8 lg:pb-10">
+          <div className="space-y-4 lg:space-y-6 flex-1 w-full">
+            <div className="flex flex-wrap items-center gap-3">
               <StatusBadge status={project.status} />
               <span className="text-[10px] font-black font-mono text-[#9E9E9E] bg-surface-bg px-3 py-1 rounded-lg border border-line-muted uppercase">SYS_REF: {project.id.toString().slice(0, 8)}</span>
             </div>
-            <h2 className="text-6xl font-display font-bold tracking-tighter leading-[0.9] group-hover:translate-x-1 transition-transform duration-500">{project.name}</h2>
-            <div className="p-6 bg-surface-bg rounded-[24px] border border-line-muted max-w-2xl">
-              <p className="text-lg text-[#616161] leading-relaxed font-medium">
+            <h2 className="text-3xl lg:text-6xl font-display font-bold tracking-tighter leading-[0.9] group-hover:translate-x-1 transition-transform duration-500 text-brand-primary">{project.name}</h2>
+            <div className="p-5 lg:p-6 bg-surface-bg rounded-[24px] border border-line-muted w-full max-w-2xl">
+              <p className="text-sm lg:text-lg text-[#616161] leading-relaxed font-medium">
                 {project.description || 'System generated project node for your renewable energy transition.'}
               </p>
             </div>
           </div>
           
-          <div className="text-right shrink-0">
-             <div className="p-8 bg-brand-primary rounded-[32px] text-white shadow-xl shadow-black/10">
+          <div className="text-left lg:text-right shrink-0 w-full lg:w-auto">
+             <div className="p-6 lg:p-8 bg-brand-primary rounded-[28px] lg:rounded-[32px] text-white shadow-xl shadow-black/10">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-white/40 mb-3">Total Investment</p>
-                <p className="text-5xl font-display font-bold tracking-tighter leading-none">
-                   <span className="text-brand-accent text-3xl mr-1 italic serif">₹</span>
+                <p className="text-3xl lg:text-5xl font-display font-bold tracking-tighter leading-none">
+                   <span className="text-brand-accent text-2xl lg:text-3xl mr-1 italic serif">₹</span>
                    {(project.proposal_amount || 0).toLocaleString()}
                 </p>
              </div>
@@ -258,7 +276,7 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
         </div>
 
         {/* Financial Matrix */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 bg-surface-bg p-8 rounded-[32px] border border-line-muted">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 bg-surface-bg p-6 lg:p-8 rounded-[28px] lg:rounded-[32px] border border-line-muted">
           <FinanceDetail label="ALLOCATED" value={project.proposal_amount} />
           <FinanceDetail label="RETAINER" value={project.advance_amount || project.advance_payment || project.advance_amt} />
           <FinanceDetail label="SETTLED" value={project.paid_amount} />
@@ -266,16 +284,16 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
         </div>
 
         {/* Timeline Pipeline */}
-        <div className="space-y-4">
-           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-4">Phase Sequence</h3>
-           <div className="bg-surface-bg rounded-[40px] p-2 border border-line-muted shadow-inner" key={`${project.id}-${project.status}`}>
+        <div className="space-y-4 overflow-x-auto pb-4 lg:pb-0 hide-scrollbar">
+           <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] px-2 lg:px-4">Phase Sequence</h3>
+           <div className="bg-surface-bg rounded-[32px] lg:rounded-[40px] p-2 border border-line-muted shadow-inner min-w-[600px] lg:min-w-0" key={`${project.id}-${project.status}`}>
               <StatusPipeline currentStatus={project.status} />
            </div>
         </div>
 
         {/* Tracking Footer */}
-        <div className="flex flex-col md:flex-row justify-between items-center gap-10 pt-10 border-t border-line-muted">
-          <div className="flex items-center gap-12">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-8 lg:gap-10 pt-8 lg:pt-10 border-t border-line-muted">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-8 lg:gap-12 w-full lg:w-auto">
             <div className="space-y-2">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Authorization</p>
               <div className="flex items-center gap-3">
@@ -284,19 +302,22 @@ function ProjectCard({ project, index }: { project: Project; index: number; key?
               </div>
             </div>
             <div className="space-y-2">
-              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Final Update</p>
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E]">Technical Sync</p>
               <div className="flex items-center gap-3 text-xs font-black font-mono">
-                <Clock size={16} className="text-brand-accent" /> {new Date(project.updated_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+                <Clock size={16} className="text-brand-accent" /> 
+                {project.updated_at 
+                  ? new Date(project.updated_at).toLocaleDateString(undefined, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }).toUpperCase() 
+                  : 'INITIALIZING...'}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 lg:gap-6 w-full lg:w-auto justify-between lg:justify-end">
              <div className="text-right">
                 <p className="text-[10px] font-black uppercase tracking-[0.2em] text-[#9E9E9E] mb-1">Total Completion</p>
-                <div className="text-5xl font-display font-black tracking-tighter text-brand-primary">{project.progress}%</div>
+                <div className="text-3xl lg:text-5xl font-display font-black tracking-tighter text-brand-primary">{project.progress}%</div>
              </div>
-             <div className="w-48 h-2 bg-surface-bg rounded-full overflow-hidden border border-line-muted p-0.5">
+             <div className="w-32 lg:w-48 h-1.5 lg:h-2 bg-surface-bg rounded-full overflow-hidden border border-line-muted p-0.5">
                 <motion.div 
                   initial={{ width: 0 }}
                   animate={{ width: `${project.progress}%` }}

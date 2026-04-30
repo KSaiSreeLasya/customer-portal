@@ -12,6 +12,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('Overview');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     const savedUser = localStorage.getItem('user');
@@ -54,7 +55,14 @@ export default function App() {
           path="/*"
           element={
             user ? (
-              <Layout user={user} onLogout={handleLogout} activeTab={activeTab} setActiveTab={setActiveTab}>
+              <Layout 
+                user={user} 
+                onLogout={handleLogout} 
+                activeTab={activeTab} 
+                setActiveTab={setActiveTab}
+                isMobileMenuOpen={isMobileMenuOpen}
+                setIsMobileMenuOpen={setIsMobileMenuOpen}
+              >
                 <Dashboard user={user} activeTab={activeTab} />
               </Layout>
             ) : (
@@ -67,22 +75,53 @@ export default function App() {
   );
 }
 
-function Layout({ user, children, onLogout, activeTab, setActiveTab }: { 
+function Layout({ user, children, onLogout, activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }: { 
   user: User; 
   children: React.ReactNode; 
   onLogout: () => void;
   activeTab: string;
   setActiveTab: (tab: string) => void;
+  isMobileMenuOpen: boolean;
+  setIsMobileMenuOpen: (val: boolean) => void;
 }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
     <div className="min-h-screen bg-surface-bg text-brand-primary font-sans">
+      {/* Mobile Header */}
+      <div className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-white border-b border-line-muted px-6 flex items-center justify-between z-30">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-brand-primary rounded-lg flex items-center justify-center">
+            <FolderKanban className="text-brand-accent w-5 h-5" />
+          </div>
+          <h1 className="font-display font-bold text-lg tracking-tight">HELIO</h1>
+        </div>
+        <button 
+          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+          className="w-10 h-10 rounded-xl bg-surface-bg flex items-center justify-center text-brand-primary"
+        >
+          <Plus className={`transition-transform duration-300 ${isMobileMenuOpen ? 'rotate-45' : ''}`} size={20} />
+        </button>
+      </div>
+
+      {/* Sidebar Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setIsMobileMenuOpen(false)}
+            className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-20"
+          />
+        )}
+      </AnimatePresence>
+
       {/* Sidebar / Nav */}
-      <nav className="fixed top-0 left-0 h-full w-72 bg-white border-r border-line-muted p-8 z-20 flex flex-col justify-between">
+      <nav className={`fixed top-16 lg:top-0 left-0 h-[calc(100%-4rem)] lg:h-full w-72 bg-white border-r border-line-muted p-8 z-30 flex flex-col justify-between transition-transform duration-300 lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="space-y-12">
-          <div className="flex items-center gap-4 px-2">
+          <div className="hidden lg:flex items-center gap-4 px-2">
             <div className="w-10 h-10 bg-brand-primary rounded-xl flex items-center justify-center shadow-lg shadow-black/10">
               <FolderKanban className="text-brand-accent w-6 h-6" />
             </div>
@@ -98,7 +137,7 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
               icon={<LayoutDashboard size={20} />} 
               label="Overview" 
               active={activeTab === 'Overview'} 
-              onClick={() => { setActiveTab('Overview'); navigate('/'); }} 
+              onClick={() => { setActiveTab('Overview'); navigate('/'); setIsMobileMenuOpen(false); }} 
             />
             {user.role === 'admin' && (
               <>
@@ -106,13 +145,13 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
                   icon={<Users size={20} />} 
                   label="Customers" 
                   active={activeTab === 'Customers'} 
-                  onClick={() => { setActiveTab('Customers'); navigate('/'); }} 
+                  onClick={() => { setActiveTab('Customers'); navigate('/'); setIsMobileMenuOpen(false); }} 
                 />
                 <NavItem 
                   icon={<FolderKanban size={20} />} 
                   label="Installations" 
                   active={activeTab === 'Installations'} 
-                  onClick={() => { setActiveTab('Installations'); navigate('/'); }} 
+                  onClick={() => { setActiveTab('Installations'); navigate('/'); setIsMobileMenuOpen(false); }} 
                 />
               </>
             )}
@@ -142,8 +181,8 @@ function Layout({ user, children, onLogout, activeTab, setActiveTab }: {
         </div>
       </nav>
 
-      <main className="pl-72 min-h-screen">
-        <div className="max-w-7xl mx-auto p-12">
+      <main className="lg:pl-72 min-h-screen pt-16 lg:pt-0">
+        <div className="max-w-7xl mx-auto p-6 md:p-12">
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname + activeTab}

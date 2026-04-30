@@ -104,9 +104,23 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
   };
 
   return (
-    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden font-sans select-none">
-      {/* Brand Side */}
-      <div className="hidden md:flex md:w-3/5 bg-brand-primary p-24 flex-col justify-between relative overflow-hidden">
+    <div className="min-h-screen bg-white flex flex-col md:flex-row overflow-hidden font-sans select-none relative">
+      {/* Mobile Brand Header */}
+      <div className="md:hidden w-full bg-brand-primary p-6 flex items-center justify-between z-20">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-brand-accent rounded-lg flex items-center justify-center">
+            <FolderKanban className="text-brand-primary w-5 h-5" />
+          </div>
+          <h1 className="font-display font-black text-xl tracking-tighter text-white">HELIO<span className="text-brand-accent">.</span></h1>
+        </div>
+        <div className="text-[8px] font-bold uppercase tracking-widest text-white/40 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 bg-brand-accent rounded-full animate-pulse" />
+          Active
+        </div>
+      </div>
+
+      {/* Brand Side (Desktop) */}
+      <div className="hidden md:flex md:w-3/5 bg-brand-primary p-12 lg:p-24 flex-col justify-between relative overflow-hidden">
         {/* Abstract Solar Graphic */}
         <div className="absolute top-[-20%] right-[-10%] w-[800px] h-[800px] bg-brand-accent/5 rounded-full blur-[100px]" />
         <div className="absolute bottom-[-10%] left-[-5%] w-[400px] h-[400px] bg-brand-accent/10 rounded-full blur-[80px]" />
@@ -157,10 +171,10 @@ export default function Login({ onLogin }: { onLogin: (user: User, token: string
       </div>
 
       {/* Login Side */}
-      <div className="w-full md:w-2/5 flex items-center justify-center p-8 bg-surface-bg relative">
-        <div className="w-full max-w-sm">
-          <div className="mb-12">
-            <div className="flex bg-white p-1.5 rounded-2xl mb-12 shadow-sm border border-line-muted">
+      <div className="w-full md:w-2/5 flex items-center justify-center p-6 lg:p-8 bg-surface-bg relative min-h-[calc(100vh-80px)] md:min-h-screen">
+        <div className="w-full max-w-sm py-8 md:py-0">
+          <div className="mb-8 lg:mb-12">
+            <div className="flex bg-white p-1.5 rounded-2xl mb-8 lg:mb-12 shadow-sm border border-line-muted">
               <button 
                 onClick={() => { setMode('customer'); setError(''); }}
                 className={`flex-1 py-3 text-xs font-black uppercase tracking-widest rounded-xl transition-all ${mode === 'customer' ? 'bg-brand-primary text-white shadow-lg' : 'text-brand-primary/40 hover:text-brand-primary'}`}
